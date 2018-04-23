@@ -25,7 +25,7 @@ interface ExtendedSalesRuleInterface extends RuleInterface
      * Get an array of calculated / indexed matching products and
      * discount amounts for this sales rule.
      *
-     * @return float[] $discounts
+     * @return array $discounts
      */
     public function getProductDiscounts();
 
@@ -34,7 +34,7 @@ interface ExtendedSalesRuleInterface extends RuleInterface
      *
      * Set the available product discount amounts for this rule.
      *
-     * @param float[] $discounts
+     * @param array $discounts
      *
      * @return self $this
      */

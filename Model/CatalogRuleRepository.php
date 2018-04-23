@@ -165,7 +165,7 @@ class CatalogRuleRepository
      *
      * @param int[] $ruleIds
      *
-     * @return float[] $prices
+     * @return array $prices
      */
     protected function loadRulePrices(array $ruleIds)
     {

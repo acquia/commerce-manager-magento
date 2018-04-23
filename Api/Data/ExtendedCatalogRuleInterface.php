@@ -25,7 +25,7 @@ interface ExtendedCatalogRuleInterface extends RuleInterface
      * Get an array of calculated / indexed matching products
      * and discount amounts for this catalog rule.
      *
-     * @return float[] $discounts
+     * @return array $discounts
      */
     public function getProductDiscounts();
 
@@ -34,7 +34,7 @@ interface ExtendedCatalogRuleInterface extends RuleInterface
      *
      * Set the available product discounts for this rule.
      *
-     * @param float[] $discounts
+     * @param array $discounts
      *
      * @return self $this
      */
