@@ -46,6 +46,7 @@ class UpdateAttributes
     /**
      * aroundUpdateAttributes
      *
+     * @param Interceptor $interceptor
      * @param callable $original
      * @param $productIds
      * @param $attrData
