@@ -137,7 +137,6 @@ class CartManagement implements ApiInterface
      */
     protected $appMode;
 
-
   /**
      * @param RegionFactory $regionFactory
      * @param \Psr\Log\LoggerInterface $logger
