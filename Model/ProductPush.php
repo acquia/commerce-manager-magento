@@ -64,9 +64,9 @@ class ProductPush
      */
     public function pushProductBatch($batch)
     {
-        $productIds = json_decode($batch, TRUE);
+        $products = json_decode($batch, TRUE);
 
-        if (empty($productIds) || !is_array($productIds)) {
+        if (empty($products) || !is_array($products)) {
             $this->logger->error("ProductPush: Invalid data received in consumer", [
                 'batch' => $batch,
             ]);
@@ -76,10 +76,26 @@ class ProductPush
 
         $productDataByStore = [];
 
-        foreach ($productIds as $productId) {
-            $product = $this->productRepository->getById($productId);
+        foreach ($products as $row) {
+            if (is_array($row)) {
+                $productId = $row['product_id'];
+                $storeId = $row['store_id'] ? $row['store_id'] : null;
+            }
+            // Backward compatibility. We need to update this everywhere
+            // to push only for specific stores wherever possible.
+            else {
+                $productId = $row;
+                $storeId = null;
+            }
 
-            $stores = $product->getStoreIds();
+            // Force reload, we always want to send fresh data.
+            $product = $this->productRepository->getById($productId, false, $storeId, true);
+
+            // Get store id of loaded product.
+            $storeId = $product->getStoreId();
+
+            // Do for only specific store if loaded product doesn't belong to default store.
+            $stores = ($storeId == 0) ? $product->getStoreIds() : [$storeId];
 
             foreach ($stores as $storeId) {
                 if ($storeId == 0) {
@@ -91,10 +107,12 @@ class ProductPush
                     [ 'sku' => $product->getSku(), 'id' => $product->getId() ]
                 );
 //NEEDS TRY CATCH
+                // Force reload, we always want to send fresh data.
                 $storeProduct = $this->productRepository->getById(
                     $product->getId(),
                     false,
-                    $storeId
+                    $storeId,
+                    true
                 );
 
                 if ($storeProduct) {
@@ -103,6 +121,6 @@ class ProductPush
             }
         }
 
-        $this->batchHelper->pushMultipleProducts($productDataByStore);
+        $this->batchHelper->pushMultipleProducts($productDataByStore, 'pushProductBatch');
     }
 }

@@ -64,6 +64,11 @@
                     <comment>Filter root category when pushing or not.</comment>
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                 </field>
+                <field id="push_on_attribute_update" translate="label" type="select" sortOrder="20" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Push when attribute updated</label>
+                    <comment>Push whole product when an attribute is updated</comment>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                </field>
             </group>
         </section>
     </system>

@@ -244,4 +244,18 @@ class ProductBatch extends AbstractHelper
         return $batchSize;
     }
 
+    /**
+     * Check if we need to push product on attribute changes.
+     *
+     * @return bool
+     */
+    public function pushOnProductAttributeUpdate() {
+        $path = 'webapi/acquia_commerce_settings/push_on_attribute_update';
+
+        return (bool) $this->scopeConfig->getValue(
+            $path,
+            ScopeConfigInterface::SCOPE_TYPE_DEFAULT
+        );
+    }
+
 }

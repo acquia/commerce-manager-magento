@@ -21,6 +21,8 @@
             <acquia_commerce_settings>
                 <product_push_batch_size>5</product_push_batch_size>
                 <filter_root_category>false</filter_root_category>
+                <push_stock>false</push_stock>
+                <push_on_attribute_update>false</push_on_attribute_update>
             </acquia_commerce_settings>
             <acquia_commerce_security>
                 <ac_hmac_id></ac_hmac_id>

@@ -69,4 +69,7 @@
                 sortOrder="10"
                 disabled="false"/>
     </type>
+    <type name="Magento\Catalog\Model\Product\Action">
+        <plugin name="update-attributes" type="Acquia\CommerceManager\Model\Plugin\UpdateAttributes" />
+    </type>
 </config>
