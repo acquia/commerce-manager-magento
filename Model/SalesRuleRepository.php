@@ -16,6 +16,7 @@ use Magento\SalesRule\Model\ResourceModel\Rule\CollectionFactory;
 use Magento\Framework\Reflection\DataObjectProcessor;
 use Magento\Framework\Api\ExtensionAttribute\JoinProcessorInterface;
 use Magento\Framework\App\ResourceConnection;
+use Magento\Store\Model\StoreManagerInterface;
 
 /**
  * SalesRuleRepository
@@ -61,24 +62,32 @@ class SalesRuleRepository implements SalesRuleRepositoryInterface
     protected $toDataModelConverter;
 
     /**
+     * @var StoreManagerInterface $storeManager
+     */
+    private $storeManager;
+
+    /**
      * Constructor
      *
      * @param CollectionFactory $ruleCollectionFactory
      * @param ResourceConnection $resource
      * @param ToDataModel $toDataModelConverter
      * @param JoinProcessorInterface $extensionAttributesJoinProcessor
+     * @param StoreManagerInterface $storeManager
      */
     public function __construct(
         CollectionFactory $ruleCollectionFactory,
         ResourceConnection $resource,
         ToDataModel $toDataModelConverter,
-        JoinProcessorInterface $extensionAttributesJoinProcessor
+        JoinProcessorInterface $extensionAttributesJoinProcessor,
+        StoreManagerInterface $storeManager
     ) {
         $this->ruleCollectionFactory = $ruleCollectionFactory;
         $this->resource = $resource;
         $this->connection = $resource->getConnection();
         $this->toDataModelConverter = $toDataModelConverter;
         $this->extensionAttributesJoinProcessor = $extensionAttributesJoinProcessor;
+        $this->storeManager = $storeManager;
     }
 
     /**
@@ -107,7 +116,6 @@ class SalesRuleRepository implements SalesRuleRepositoryInterface
         $results = [];
 
         // Load / convert to data models and add discount data
-        /* @var \Magento\SalesRule\Model\Rule $rule */
         foreach ($rules as $rule) {
             $rid = $rule->getId();
             $rule->load($rid);
@@ -149,6 +157,10 @@ class SalesRuleRepository implements SalesRuleRepositoryInterface
         if ($productId > 0) {
             $select->where('asp.product_id = ?', $productId);
         }
+
+        // Always load data for store currently in URL context.
+        $websiteId = $this->storeManager->getStore()->getWebsiteId();
+        $select->where('asp.website_id = ?', $websiteId);
 
         $select->join(
             ['e' => $this->resource->getTableName('catalog_product_entity')],
