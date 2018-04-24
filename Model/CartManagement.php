@@ -11,6 +11,7 @@
 namespace Acquia\CommerceManager\Model;
 
 use Magento\Directory\Model\RegionFactory;
+use Acquia\CommerceManager\Api\Data\CartWithTotalsInterface;
 use Acquia\CommerceManager\Api\CartManagementInterface as ApiInterface;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Checkout\Api\ShippingInformationManagementInterface;
@@ -30,6 +31,8 @@ use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Checkout\Api\Data\ShippingInformationInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
 use Magento\Quote\Api\Data\CartInterface;
+use Magento\Framework\Reflection\DataObjectProcessor;
+use Magento\Framework\App\State;
 
 /**
  * CartManagement
@@ -123,6 +126,19 @@ class CartManagement implements ApiInterface
     protected $logger;
 
     /**
+     * Data processor.
+     * @var DataObjectProcessor
+     */
+    protected $dataProcessor;
+
+    /**
+     * Application mode
+     * @var State $appMode
+     */
+    protected $appMode;
+
+
+  /**
      * @param RegionFactory $regionFactory
      * @param \Psr\Log\LoggerInterface $logger
      * @param \Magento\Quote\Api\Data\CartExtensionFactory $cartExtensionFactory
@@ -138,6 +154,8 @@ class CartManagement implements ApiInterface
      * @param ShippingInformationManagementInterface $shippingManager
      * @param PaymentMethodManagementInterface $paymentManager
      * @param ManagerInterface $eventManager
+     * @param DataObjectProcessor $dataProcessor
+     * @param State $appMode
      */
     public function __construct(
         \Magento\Store\Model\StoreManagerInterface $storeManager,
@@ -155,7 +173,9 @@ class CartManagement implements ApiInterface
         BillingAddressManagementInterface $billingManager,
         ShippingInformationManagementInterface $shippingManager,
         PaymentMethodManagementInterface $paymentManager,
-        ManagerInterface $eventManager
+        ManagerInterface $eventManager,
+        DataObjectProcessor $dataProcessor,
+        State $appMode
     ) {
         $this->regionFactory = $regionFactory;
         $this->logger = $logger;
@@ -172,6 +192,8 @@ class CartManagement implements ApiInterface
         $this->shippingManager = $shippingManager;
         $this->paymentManager = $paymentManager;
         $this->eventManager = $eventManager;
+        $this->dataProcessor = $dataProcessor;
+        $this->appMode = $appMode;
     }
 
     /**
@@ -396,7 +418,10 @@ class CartManagement implements ApiInterface
         );
 
         // Code sniff fail. Research alternatives.
-        return (new CartWithTotals($cart, $totals));
+        $cart_with_totals = new CartWithTotals($cart, $totals);
+        // Log the object.
+        $this->logCartObject($cart_with_totals);
+        return ($cart_with_totals);
     }
 
     /**
@@ -465,7 +490,10 @@ class CartManagement implements ApiInterface
                 ['quote' => $cart, 'totals' => $totals]
             );
 
-            return (new CartWithTotals($cart, $totals));
+            $cart_with_totals = new CartWithTotals($cart, $totals);
+            // Log the object.
+            $this->logCartObject($cart_with_totals);
+            return($cart_with_totals);
         } catch (NoSuchEntityException $e) {
             return (false);
         }
@@ -485,5 +513,21 @@ class CartManagement implements ApiInterface
         $quote->collectTotals();
         $quote->save();
     }
+
+  /**
+   * Log the cart object.
+   *
+   * @param CartWithTotalsInterface $cart
+   */
+  protected function logCartObject(CartWithTotalsInterface $cart)
+  {
+    // If development mode on.
+    if ($this->appMode->getMode() == 'developer') {
+      $data = $this->dataProcessor->buildOutputDataArray($cart, 'Acquia\CommerceManager\Api\Data\CartWithTotalsInterface');
+      if (is_array($data)) {
+        $this->logger->debug(json_encode($data));
+      }
+    }
+  }
 
 }
