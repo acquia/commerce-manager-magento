@@ -69,7 +69,9 @@
                 sortOrder="10"
                 disabled="false"/>
     </type>
+
+    <!-- Push products on update of attributes -->
     <type name="Magento\Catalog\Model\Product\Action">
-        <plugin name="update-attributes" type="Acquia\CommerceManager\Model\Plugin\UpdateAttributes" />
+        <plugin name="acm_push_product_on_update_attributes" type="Acquia\CommerceManager\Model\Plugin\UpdateAttributes" />
     </type>
 </config>
