@@ -184,7 +184,7 @@ class Acm extends AbstractHelper
         // Only two prices matter: regular_price and final_price.
         // Product->getPrice() only retrieves the base price from the database.
         // You rarely ever want product->getPrice().
-        if (empty($record['price'])) {
+        if (empty($this->record['price'])) {
             $this->record['price'] = (string) $this->product->getPriceInfo()->getPrice('final_price')->getValue();
         }
 
