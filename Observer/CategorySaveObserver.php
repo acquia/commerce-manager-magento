@@ -32,13 +32,15 @@ class CategorySaveObserver extends CategoryObserver implements ObserverInterface
     public function execute(Observer $observer)
     {
         $category = $observer->getEvent()->getCategory();
+        $productIds = $category->getAffectedProductIds();
 
-        $this->logger->info(sprintf(
-            '%s: save category %s (%d)',
-            $this->getLogName(),
-            $category->getName(),
-            $category->getId()
-        ));
+        $this->logger->info('Category saved.', [
+            'observer' => $this->getLogName(),
+            'category_id' => $category->getId(),
+            'category_name' => $category->getName(),
+            'products_updated' => $productIds,
+        ]);
+
 
         $this->sendStoreCategories($category);
     }

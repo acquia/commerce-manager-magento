@@ -69,9 +69,18 @@
                 sortOrder="10"
                 disabled="false"/>
     </type>
-
     <!-- Push products on update of attributes -->
     <type name="Magento\Catalog\Model\Product\Action">
-        <plugin name="acm_push_product_on_update_attributes" type="Acquia\CommerceManager\Model\Plugin\UpdateAttributes" />
+        <plugin name="acm_push_product_on_update_attributes"
+                type="Acquia\CommerceManager\Model\Plugin\UpdateAttributes"
+                sortOrder="10"
+                disabled="false"/>
+    </type>
+    <!-- Push products on category mapping updated -->
+    <type name="Magento\Catalog\Model\Category">
+        <plugin name="acm_push_product_after_product_assign"
+                type="Acquia\CommerceManager\Model\Plugin\ProductPushOnCategoryAssignment"
+                sortOrder="10"
+                disabled="false"/>
     </type>
 </config>
