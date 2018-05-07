@@ -10,7 +10,6 @@
 
 namespace Acquia\CommerceManager\Model\Plugin;
 
-use Acquia\CommerceManager\Helper\Acm as AcmHelper;
 use Acquia\CommerceManager\Helper\ProductBatch as BatchHelper;
 use Magento\Catalog\Model\Product\Action\Interceptor;
 use Psr\Log\LoggerInterface;
@@ -83,7 +82,7 @@ class UpdateAttributes
 
                 if (!empty($batch)) {
                     // Push product ids in queue in batch.
-                    $this->batchHelper->addbatchtoqueue($batch);
+                    $this->batchHelper->addBatchToQueue($batch);
 
                     $this->logger->info('Added products to queue for pushing in background.', [
                         'observer' => 'aroundUpdateAttributes',
