@@ -91,11 +91,8 @@ class ProductPush
             // Force reload, we always want to send fresh data.
             $product = $this->productRepository->getById($productId, false, $storeId, true);
 
-            // Get store id of loaded product.
-            $storeId = $product->getStoreId();
-
             // Do for only specific store if loaded product doesn't belong to default store.
-            $stores = ($storeId == 0) ? $product->getStoreIds() : [$storeId];
+            $stores = empty($storeId) ? $product->getStoreIds() : [$storeId];
 
             foreach ($stores as $storeId) {
                 if ($storeId == 0) {
