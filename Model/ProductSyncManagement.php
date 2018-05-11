@@ -16,6 +16,7 @@ use Acquia\CommerceManager\Helper\Acm as AcmHelper;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Model\Product\Attribute\Source\Status;
 use Magento\Framework\Api\SearchCriteriaBuilder;
+use Magento\Store\Model\StoreManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -61,20 +62,28 @@ class ProductSyncManagement implements ProductSyncManagementInterface
     protected $logger;
 
     /**
+     * @var \Magento\Store\Model\StoreManagerInterface
+     */
+    protected $storeManager;
+
+    /**
      * ProductSyncManagement constructor.
      * @param AcmHelper $acmHelper
+     * @param StoreManagerInterface $storeManager
      * @param ClientHelper $clientHelper
      * @param SearchCriteriaBuilder $searchCriteriaBuilder
      * @param ProductRepositoryInterface $productRepository
      */
     public function __construct(
         AcmHelper $acmHelper,
+        StoreManagerInterface $storeManager,
         ClientHelper $clientHelper,
         SearchCriteriaBuilder $searchCriteriaBuilder,
         ProductRepositoryInterface $productRepository,
         LoggerInterface $logger
     ) {
         $this->acmHelper = $acmHelper;
+        $this->storeManager = $storeManager;
         $this->clientHelper = $clientHelper;
         $this->searchCriteriaBuilder = $searchCriteriaBuilder;
         $this->productRepository = $productRepository;
@@ -121,11 +130,45 @@ class ProductSyncManagement implements ProductSyncManagementInterface
         /** @var \Magento\Catalog\Api\Data\ProductInterface[] $products */
         $products = $this->productRepository->getList($search_criteria)->getItems();
 
+        // Get current website id from context.
+        $storeIdInContext = $this->storeManager->getStore()->getId();
+        $websiteIdInContext = $this->storeManager->getStore($storeIdInContext)->getWebsiteId();
+
         // Format JSON Output
         $output = [];
 
         foreach ($products as $product) {
+            $websiteIds = $product->getWebsiteIds();
             $record = $this->acmHelper->getProductDataForAPI($product);
+
+            // If product is not in the website in context we will send
+            // product with status disabled.
+            if (!in_array($websiteIdInContext, $websiteIds)) {
+                // Don't push this product if we are not specifically
+                // asking for it.
+                if (empty($skus)) {
+                    $this->logger->debug('syncProducts: Product not available in website requested, not sending.', [
+                        'sku' => $product->getSku(),
+                        'id' => $product->getId(),
+                        'store_id' => $storeIdInContext,
+                        'website_id_in_context' => $websiteIdInContext,
+                        'product_website_ids' => $websiteIds,
+                    ]);
+
+                    continue;
+                }
+
+                $this->logger->debug('syncProducts: Product not available in website requested, sending with status disabled.', [
+                    'sku' => $product->getSku(),
+                    'id' => $product->getId(),
+                    'store_id' => $storeIdInContext,
+                    'website_id_in_context' => $websiteIdInContext,
+                    'product_website_ids' => $websiteIds,
+                ]);
+
+                $record['status'] = 0;
+            }
+
             $storeId = $record['store_id'];
             $output[$storeId][] = $record;
             $this->logger->info('Product sync maker. (store '.$storeId.')'.$product->getSku());

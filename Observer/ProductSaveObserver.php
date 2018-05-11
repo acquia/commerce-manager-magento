@@ -138,6 +138,47 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
                 $this->sendProductData($storeProduct, $storeId);
             }
         }
+
+        // For the sites in which product is removed, we will send the product
+        // with status disabled to ensure remote system gets an update.
+        $websiteIdsOriginal = $product->getOrigData('website_ids');
+        $websiteIds = $product->getWebsiteIds();
+        $websitesIdsRemoved = array_diff($websiteIdsOriginal, $websiteIds);
+
+        if ($websitesIdsRemoved) {
+            $this->logger->debug('ProductSaveObserver: product removed from websites.', [
+                'sku' => $product->getSku(),
+                'id' => $product->getId(),
+                'website_ids_removed' => $websitesIdsRemoved,
+            ]);
+
+            foreach ($websitesIdsRemoved as $websiteId) {
+                $website = $this->storeManager->getWebsite($websiteId);
+                foreach ($website->getStoreIds() as $storeId) {
+                    $storeProduct = $this->productRepository->getById(
+                        $product->getId(),
+                        false,
+                        $storeId
+                    );
+
+                    // Ideally we should not get product here but for some reason Magento
+                    // gives full loaded product with status same as default store, which
+                    // would be enabled most of the time.
+                    if (empty($storeProduct)) {
+                        continue;
+                    }
+
+                    $this->logger->debug('ProductSaveObserver: Product removed from website, sending product with status disabled.', [
+                        'sku' => $storeProduct->getSku(),
+                        'id' => $storeProduct->getId(),
+                        'store_id' => $storeId,
+                    ]);
+
+                    $this->sendProductData($storeProduct, $storeId, true);
+                }
+            }
+        }
+
     }
 
     /**
@@ -146,12 +187,18 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
      * Send product data to the Connector API endpoint.
      *
      * @param ProductInterface $product Product to send
+     * @param mixed $storeId Store ID (string/int)
+     * @param bool $forceDisabled Force product to be sent as disabled
      *
      * @return void
      */
-    private function sendProductData(ProductInterface $product, $storeId)
+    private function sendProductData(ProductInterface $product, $storeId, $forceDisabled = false)
     {
         $record = $this->acmHelper->getProductDataForAPI($product);
+
+        if ($forceDisabled) {
+            $record['status'] = 0;
+        }
 
         $doReq = function ($client, $opt) use ($record) {
             // Commerce Connector spec says always send an array.
