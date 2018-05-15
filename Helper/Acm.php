@@ -32,11 +32,6 @@ class Acm extends AbstractHelper
     private $mediaGalleryReadHandler;
 
     /**
-     * @var \Magento\CatalogRule\Model\Rule $catalogRule;
-     */
-    private $catalogRule;
-
-    /**
      * @var \Acquia\CommerceManager\Model\Product\RelationBuilderInterface $relationBuilder;
      */
     private $relationBuilder;
@@ -83,7 +78,6 @@ class Acm extends AbstractHelper
      * @param \Magento\Framework\Webapi\ServiceOutputProcessor $serviceOutputProcessor
      * @param \Magento\Catalog\Model\ResourceModel\Product\Gallery $galleryResource
      * @param \Magento\Catalog\Model\Product\Gallery\ReadHandler $mediaGalleryReadHandler
-     * @param \Magento\CatalogRule\Model\Rule $catalogRule
      * @param \Acquia\CommerceManager\Model\Product\RelationBuilderInterface $relationBuilder
      * @param \Magento\Eav\Api\AttributeSetRepositoryInterface $attributeSet
      * @param \Magento\Framework\App\Helper\Context $context
@@ -95,7 +89,6 @@ class Acm extends AbstractHelper
         \Magento\Framework\Webapi\ServiceOutputProcessor $serviceOutputProcessor,
         \Magento\Catalog\Model\ResourceModel\Product\Gallery $galleryResource,
         \Magento\Catalog\Model\Product\Gallery\ReadHandler $mediaGalleryReadHandler,
-        \Magento\CatalogRule\Model\Rule $catalogRule,
         \Acquia\CommerceManager\Model\Product\RelationBuilderInterface $relationBuilder,
         \Magento\Eav\Api\AttributeSetRepositoryInterface $attributeSet,
         \Magento\Framework\App\Helper\Context $context
@@ -106,7 +99,6 @@ class Acm extends AbstractHelper
         $this->serviceOutputProcessor = $serviceOutputProcessor;
         $this->galleryResource = $galleryResource;
         $this->mediaGalleryReadHandler = $mediaGalleryReadHandler;
-        $this->catalogRule = $catalogRule;
         $this->relationBuilder = $relationBuilder;
         $this->attributeSet = $attributeSet;
 
@@ -194,41 +186,12 @@ class Acm extends AbstractHelper
 
         // These are the only two prices that matter.
         $this->record['regular_price'] = (string) $this->product->getPriceInfo()->getPrice('regular_price')->getValue();
-        $this->record['final_price'] = (string) $this->product->getPriceInfo()->getPrice('final_price')->getValue();
+        $this->record['final_price'] = (string) $this->product->getPriceInfo()->getPrice('final_price')->getMinimalPrice()->getValue();
 
-        // TODO: Consider removal
-        // $this->record['final_price'] = (string) $this->getFinalPrice($this->product);
-    }
-
-
-    /**
-     * Get final price for a product.
-     *
-     * This is actually to mimic how it's done in Magento frontend.
-     * Code reference taken from class mentioned below:
-     * module-configurable-product/Pricing/Price/ConfigurablePriceResolver
-     * resolvePrice() of ^^ class.
-     *
-     * @param ProductInterface $product
-     *   Product object.
-     *
-     * @return float|mixed|null
-     *   Final price.
-     */
-    protected function getFinalPrice(ProductInterface $product)
-    {
-        $finalPrice = $this->catalogRule->calcProductPriceRule($product, $product->getPrice());
-        // Later : Handle bundled products scenario separately if required.
-        if ($product->getTypeId() == \Magento\ConfigurableProduct\Model\Product\Type\Configurable::TYPE_CODE) {
-            $children = $product->getTypeInstance()->getUsedProducts($product);
-            foreach ($children as $child) {
-                if ($child->isSaleable()) {
-                    $childFinalPrice = $this->catalogRule->calcProductPriceRule($product, $child->getPrice());
-                    $finalPrice = min($finalPrice, $childFinalPrice);
-                }
-            }
+        // Fallback.
+        if (empty($this->record['final_price'])) {
+            $this->record['final_price'] = $this->product->getFinalPrice();
         }
-        return $finalPrice;
     }
 
     /**
