@@ -109,6 +109,8 @@ class SalesRuleRepository implements SalesRuleRepositoryInterface
             $rules->addFieldToFilter('rule_id', (int)$ruleId);
         } else {
             $rules->addFieldToFilter('is_active', 1);
+            $website_id = $this->storeManager->getWebsite()->getId();
+            $rules->addWebsiteFilter($website_id);
         }
 
         $rules->load();

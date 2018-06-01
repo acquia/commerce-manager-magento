@@ -119,6 +119,9 @@ class CatalogRuleRepository
         /* @var \Acquia\CommerceManager\Model\ResourceModel\Rule\Collection $collection */
         $collection = $this->ruleCollectionFactory->create()->addFieldToFilter('is_active', 1);
 
+        $website_id = $this->storeManager->getWebsite()->getId();
+        $collection->addWebsiteFilter($website_id);
+
         $this->extensionAttributesJoinProcessor->process(
             $collection,
             \Magento\CatalogRule\Api\Data\RuleInterface::class
