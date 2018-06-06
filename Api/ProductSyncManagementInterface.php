@@ -27,9 +27,10 @@ interface ProductSyncManagementInterface
      * @param int $page_size Products Per Page
      * @param string $skus
      * @param string $category_id
+     * @param int $async
      *
-     * @return bool $success
+     * @return mixed true in async mode and products array in sync mode
      */
-    public function syncProducts($page_count, $page_size = 50, $skus = '', $category_id = '');
+    public function syncProducts($page_count, $page_size = 50, $skus = '', $category_id = '', $async = 1);
 
 }

@@ -17,6 +17,7 @@ use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Model\Product\Attribute\Source\Status;
 use Magento\Framework\Api\SearchCriteriaBuilder;
 use Psr\Log\LoggerInterface;
+use Magento\Catalog\Api\Data\ProductSearchResultsInterfaceFactory;
 
 /**
  * ProductSyncManagement
@@ -82,18 +83,9 @@ class ProductSyncManagement implements ProductSyncManagementInterface
     }
 
     /**
-     * syncProducts
-     *
-     * {@inheritDoc}
-     *
-     * @param int $page_count Current Page
-     * @param int $page_size Products Per Page
-     * @param string $skus Comma Separated SKUs
-     * @param string $category_id comma separated category IDs
-     *
-     * @return bool $success
+     * {@inheritdoc}
      */
-    public function syncProducts($page_count, $page_size = 50, $skus = '', $category_id = '')
+    public function syncProducts($page_count, $page_size = 50, $skus = '', $category_id = '', $async = 1)
     {
         // Set collection filters.
         if (!empty($skus))
@@ -132,19 +124,23 @@ class ProductSyncManagement implements ProductSyncManagementInterface
         }
 
 
-        // We need to have separate requests per store so we can assign them
-        // correctly in middleware.
-        foreach ($output as $storeId => $arrayOfProducts) {
-            $this->logger->info('Product sync sender. Sending store '.$storeId.'');
-            // Send Connector request.
-            $doReq = function ($client, $opt) use ($arrayOfProducts) {
-                $opt['json'] = $arrayOfProducts;
-                return $client->post(self::ENDPOINT_PRODUCT_UPDATE, $opt);
-            };
+        if ($async != 0) {
+            // We need to have separate requests per store so we can assign them
+            // correctly in middleware.
+            foreach ($output as $storeId => $arrayOfProducts) {
+                $this->logger->info('Product sync sender. Sending store '.$storeId.'');
+                // Send Connector request.
+                $doReq = function ($client, $opt) use ($arrayOfProducts) {
+                    $opt['json'] = $arrayOfProducts;
+                    return $client->post(self::ENDPOINT_PRODUCT_UPDATE, $opt);
+                };
 
-            $this->clientHelper->tryRequest($doReq, 'syncProducts', $storeId);
+                $this->clientHelper->tryRequest($doReq, 'syncProducts', $storeId);
+            }
+            return (true);
         }
-
-        return (true);
+        else {
+            return $output;
+        }
     }
 }
