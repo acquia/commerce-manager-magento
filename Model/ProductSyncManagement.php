@@ -158,7 +158,7 @@ class ProductSyncManagement implements ProductSyncManagementInterface
                     continue;
                 }
 
-                $this->logger->debug('syncProducts: Product not available in website requested, sending with status disabled.', [
+                $this->logger->debug('syncProducts: Product not available in requested website, will send with status disabled.', [
                     'sku' => $product->getSku(),
                     'id' => $product->getId(),
                     'store_id' => $storeIdInContext,

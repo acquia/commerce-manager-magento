@@ -168,7 +168,7 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
                         continue;
                     }
 
-                    $this->logger->debug('ProductSaveObserver: Product removed from website, sending product with status disabled.', [
+                    $this->logger->debug('ProductSaveObserver: Product removed from website, will send product with status disabled.', [
                         'sku' => $storeProduct->getSku(),
                         'id' => $storeProduct->getId(),
                         'store_id' => $storeId,
