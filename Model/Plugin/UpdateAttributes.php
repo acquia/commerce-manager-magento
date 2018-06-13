@@ -11,7 +11,7 @@
 namespace Acquia\CommerceManager\Model\Plugin;
 
 use Acquia\CommerceManager\Helper\ProductBatch as BatchHelper;
-use Magento\Catalog\Model\Product\Action\Interceptor;
+use Magento\Catalog\Model\Product\Action;
 use Psr\Log\LoggerInterface;
 
 class UpdateAttributes
@@ -45,15 +45,15 @@ class UpdateAttributes
     /**
      * aroundUpdateAttributes
      *
-     * @param Interceptor $interceptor
+     * @param Action $subject
      * @param callable $original
      * @param $productIds
      * @param $attrData
      * @param $storeId
-     * @return Interceptor
+     * @return Action
      */
     public function aroundUpdateAttributes(
-        Interceptor $interceptor,
+        Action $subject,
         callable $original,
         $productIds,
         $attrData,
