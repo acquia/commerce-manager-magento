@@ -37,12 +37,12 @@ class OrderRepositoryPlugin
      *
      * If the incoming searchCriteria already includes a store_id field then we honour it.
      *
-     * @param \Magento\Customer\Api\CustomerRepositoryInterface $subject
+     * @param \Magento\Sales\Api\OrderRepositoryInterface $subject
      * @param \Magento\Framework\Api\SearchCriteriaInterface $searchCriteria
      * @return array
      */
     public function beforeGetList(
-        \Magento\Customer\Api\CustomerRepositoryInterface $subject,
+        \Magento\Sales\Api\OrderRepositoryInterface $subject,
         \Magento\Framework\Api\SearchCriteriaInterface $searchCriteria
     )
     {
