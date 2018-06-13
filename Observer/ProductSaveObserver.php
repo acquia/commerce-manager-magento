@@ -197,7 +197,7 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
         $record = $this->acmHelper->getProductDataForAPI($product);
 
         if ($forceDisabled) {
-            $record['status'] = 0;
+            $record['status'] = \Magento\Catalog\Model\Product\Attribute\Source\Status::STATUS_DISABLED;
         }
 
         $doReq = function ($client, $opt) use ($record) {

@@ -166,7 +166,7 @@ class ProductSyncManagement implements ProductSyncManagementInterface
                     'product_website_ids' => $websiteIds,
                 ]);
 
-                $record['status'] = 0;
+                $record['status'] = \Magento\Catalog\Model\Product\Attribute\Source\Status::STATUS_DISABLED;
             }
 
             $storeId = $record['store_id'];
