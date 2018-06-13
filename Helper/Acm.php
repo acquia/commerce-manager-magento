@@ -186,8 +186,10 @@ class Acm extends AbstractHelper
 
         // These are the only two prices that matter.
         $this->record['regular_price'] = (string) $this->product->getPriceInfo()->getPrice('regular_price')->getValue();
+        // TODO (malachy): review the need for ->getMinimalPrice(). Is it harmless?
         $this->record['final_price'] = (string) $this->product->getPriceInfo()->getPrice('final_price')->getMinimalPrice()->getValue();
 
+        // TODO (malachy): is this a good fallback? Can it ever happen? Is generating an exception a more robust solution?
         // Fallback.
         if (empty($this->record['final_price'])) {
             $this->record['final_price'] = $this->product->getFinalPrice();
