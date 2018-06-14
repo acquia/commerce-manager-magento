@@ -143,7 +143,11 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
         // with status disabled to ensure remote system gets an update.
         $websiteIdsOriginal = $product->getOrigData('website_ids');
         $websiteIds = $product->getWebsiteIds();
-        $websitesIdsRemoved = array_diff($websiteIdsOriginal, $websiteIds);
+
+        // If an event is triggered manually, we won't get $websiteIdsOriginal.
+        $websitesIdsRemoved = is_array($websiteIdsOriginal)
+            ? array_diff($websiteIdsOriginal, $websiteIds)
+            : [];
 
         if ($websitesIdsRemoved) {
             $this->logger->debug('ProductSaveObserver: product removed from websites.', [
