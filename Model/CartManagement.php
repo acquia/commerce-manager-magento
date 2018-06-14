@@ -286,6 +286,7 @@ class CartManagement implements ApiInterface
         $coupon = null,
         $extension = []
     ) {
+        $updateTotals = false;
         $quote = $this->quoteRepository->getActive($cartId);
 
         $this->eventManager->dispatch(
@@ -346,10 +347,20 @@ class CartManagement implements ApiInterface
                 $shipping->setShippingAddress($shippingAddress);
                 $this->shippingManager->saveAddressInformation($cartId, $shipping);
             }
+            // Unset shipping info if already there in cart.
+            elseif ($shippingAddress = $quote->getShippingAddress()) {
+                $shippingAddress->setShippingMethod(null);
+                $shippingAddress->save();
+                $updateTotals = true;
+            }
         }
 
         if ($payment) {
             $this->paymentManager->set($cartId, $payment);
+        }
+
+        if ($updateTotals) {
+            $this->updateTotals($cartId);
         }
 
         $cart = $this->quoteRepository->getActive($cartId);
@@ -447,6 +458,21 @@ class CartManagement implements ApiInterface
         } catch (NoSuchEntityException $e) {
             return (false);
         }
+    }
+
+    /**
+     * Wrapper function to update cart totals.
+     *
+     * @param int $cartId
+     */
+    protected function updateTotals($cartId) {
+        $quote = $this->quoteRepository->getActive($cartId);
+        $quote->setTotalsCollectedFlag(false);
+        $quote->getShippingAddress()->unsetData('cached_items_all');
+        $quote->getShippingAddress()->unsetData('cached_items_nominal');
+        $quote->getShippingAddress()->unsetData('cached_items_nonnominal');
+        $quote->collectTotals();
+        $quote->save();
     }
 
 }
