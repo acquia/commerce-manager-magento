@@ -18,7 +18,8 @@ use Magento\Checkout\Api\ShippingInformationManagementInterface;
 use Magento\Framework\Event\ManagerInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Exception\NoSuchEntityException;
-use Magento\Framework\Exception\InputException;
+use Magento\Framework\Message\ManagerInterface as MessageManagerInterface;
+use Magento\Framework\Message\MessageInterface;
 use Magento\Quote\Api\BillingAddressManagementInterface;
 use Magento\Quote\Api\CartRepositoryInterface;
 use Magento\Quote\Api\CartManagementInterface;
@@ -26,11 +27,9 @@ use Magento\Quote\Api\CartItemRepositoryInterface;
 use Magento\Quote\Api\CartTotalRepositoryInterface;
 use Magento\Quote\Api\CouponManagementInterface;
 use Magento\Quote\Api\PaymentMethodManagementInterface;
-use Magento\Quote\Api\Data\CartItemInterface;
 use Magento\Quote\Api\Data\AddressInterface;
 use Magento\Checkout\Api\Data\ShippingInformationInterface;
 use Magento\Quote\Api\Data\PaymentInterface;
-use Magento\Quote\Api\Data\CartInterface;
 use Magento\Framework\Reflection\DataObjectProcessor;
 use Magento\Framework\App\State;
 
@@ -94,6 +93,11 @@ class CartManagement implements ApiInterface
     protected $cartTotalsRepository;
 
     /**
+     * @var MessageManagerInterface
+     */
+    protected $messageManager;
+
+    /**
      * @var BillingAddressManagementInterface
      */
     protected $billingManager;
@@ -152,6 +156,7 @@ class CartManagement implements ApiInterface
      * @param BillingAddressManagementInterface $billingManager
      * @param ShippingInformationManagementInterface $shippingManager
      * @param PaymentMethodManagementInterface $paymentManager
+     * @param MessageManagerInterface $messageManager
      * @param ManagerInterface $eventManager
      * @param DataObjectProcessor $dataProcessor
      * @param State $appMode
@@ -172,6 +177,7 @@ class CartManagement implements ApiInterface
         BillingAddressManagementInterface $billingManager,
         ShippingInformationManagementInterface $shippingManager,
         PaymentMethodManagementInterface $paymentManager,
+        MessageManagerInterface $messageManager,
         ManagerInterface $eventManager,
         DataObjectProcessor $dataProcessor,
         State $appMode
@@ -190,6 +196,7 @@ class CartManagement implements ApiInterface
         $this->billingManager = $billingManager;
         $this->shippingManager = $shippingManager;
         $this->paymentManager = $paymentManager;
+        $this->messageManager = $messageManager;
         $this->eventManager = $eventManager;
         $this->dataProcessor = $dataProcessor;
         $this->appMode = $appMode;
@@ -318,7 +325,14 @@ class CartManagement implements ApiInterface
         $coupon = null,
         $extension = []
     ) {
+        $response_message = [];
         $updateTotals = false;
+
+        // We always remove the coupon first and apply again.
+        if ($currentCoupon = $this->couponManager->get($cartId)) {
+            $this->couponManager->remove($cartId);
+        }
+
         $quote = $this->quoteRepository->getActive($cartId);
 
         $this->eventManager->dispatch(
@@ -334,61 +348,136 @@ class CartManagement implements ApiInterface
             ]
         );
 
-        // Empty the cart, so we don't have to diff the items.
-        if ($quote->hasItems()) {
-            $quote->removeAllItems();
+        // Reload the quote, we might have saved changes in observers.
+        $quote = $this->quoteRepository->getActive($cartId);
+
+        $cart_items_updated = FALSE;
+
+        $new_items_index = [];
+
+        if (is_array($items)) {
+            // Loop through all items to build index array.
+            foreach ($items as $item) {
+                $new_items_index[$item->getSku()] = $item->getQty();
+            }
         }
 
-        // Add the items in the cart
-        if (!empty($items)) {
-            $quote->setItems($items);
+        $new_items = [];
+
+        if (is_array($quote->getItems())) {
+            // Loop through all existing items to remove or update.
+            foreach ($quote->getItems() as &$item) {
+                // Update item.
+                if (isset($new_items_index[$item->getSku()])) {
+                    if ($item->getQty() != $new_items_index[$item->getSku()]) {
+                        $cart_items_updated = TRUE;
+                    }
+
+                    $item->setQty($new_items_index[$item->getSku()]);
+
+                    if ($item->getHasError()) {
+                        throw new LocalizedException(__($item->getMessage()));
+                    }
+
+                    unset($new_items_index[$item->getSku()]);
+                    $new_items[] = $item;
+                } else {
+                    // Just remove.
+                    unset($new_items_index[$item->getSku()]);
+                    $quote->removeItem($item->getId());
+                    $cart_items_updated = TRUE;
+                }
+            }
         }
 
+        if (is_array($items)) {
+            // Loop through all items again to add new ones.
+            foreach ($items as $item) {
+                if (isset($new_items_index[$item->getSku()])) {
+                    $new_items[] = $item;
+                    $cart_items_updated = TRUE;
+                }
+            }
+        }
+
+        if ($new_items) {
+            $quote->setItems($new_items);
+        }
+
+        // Save the quote after adding items.
         $this->quoteRepository->save($quote);
 
-        if ($quote->hasItems()) {
-          if ($coupon != "") {
-            $this->couponManager->set($cartId, $coupon);
-          }
-          else {
-            $this->couponManager->remove($cartId);
-          }
-        }
-        
-        if ($billing) {
-            // Region in Magento is sensitive to something, so check it.
-            $billing = $this->checkRegion($billing);
-            $this->billingManager->assign($cartId, $billing);
-        }
+        // Try to apply the coupon if we have items and coupon.
+        if (!empty($items) && trim($coupon) != '') {
+            try {
+                $this->couponManager->set($cartId, $coupon);
 
-        if ($shipping) {
-            // The hybris cart needs the shipping address in the cart
-            // before getting shipping estimates.
-            // But the Magento API's Shipping Manager expects
-            // the ShippingInformation model to have a carrier and method
-            // already present. We decide to say Acquia Commerce Manager
-            // ShippingInformation's address can be populated *without* the carrier and method.
-            // Therefore test if it is missing and if it is missing here just do nothing.
-            $carrierCode = $shipping->getShippingCarrierCode();
-            $methodCode = $shipping->getShippingMethodCode();
+                // Success message.
+                $response_message['message'] = $this->getMessage('coupon', MessageInterface::TYPE_SUCCESS);
+                $response_message['type'] = MessageInterface::TYPE_SUCCESS;
+            } catch (\Exception $e) {
+                // Error message..
+                $error_message = $this->getMessage('coupon', MessageInterface::TYPE_ERROR);
+                // If no error message.
+                if (!$error_message) {
+                    $error_message = $e->getMessage();
+                }
 
-            if ($carrierCode && $methodCode) {
-                // Region in Magento is sensitive to something, so check it.
-                $shippingAddress = $shipping->getShippingAddress();
-                $shippingAddress = $this->checkRegion($shippingAddress);
-                $shipping->setShippingAddress($shippingAddress);
-                $this->shippingManager->saveAddressInformation($cartId, $shipping);
+                $response_message['message'] = $error_message;
+                $response_message['type'] = 'error_coupon';
+
+                // Just returning from here as at this point we hit by an
+                // error and don't want to update the cart.
+                $cart = $this->quoteRepository->getActive($cartId);
+                $totals = $this->cartTotalsRepository->get($cartId);
+                return (new CartWithTotals($cart, $totals, $response_message));
             }
-            // Unset shipping info if already there in cart.
-            elseif ($shippingAddress = $quote->getShippingAddress()) {
+        }
+
+        // Clear shipping method when cart item is updated or no cart items
+        // left in quote.
+        if ($cart_items_updated || empty($items)) {
+            if ($shippingAddress = $quote->getShippingAddress()) {
                 $shippingAddress->setShippingMethod(null);
                 $shippingAddress->save();
                 $updateTotals = true;
             }
-        }
+        } else {
+            if ($billing) {
+                // Region in Magento is sensitive to something, so check it.
+                $billing = $this->checkRegion($billing);
+                $this->billingManager->assign($cartId, $billing);
+            }
 
-        if ($payment) {
-            $this->paymentManager->set($cartId, $payment);
+            if ($shipping) {
+                // The hybris cart needs the shipping address in the cart
+                // before getting shipping estimates.
+                // But the Magento API's Shipping Manager expects
+                // the ShippingInformation model to have a carrier and method
+                // already present. We decide to say Acquia Commerce Manager
+                // ShippingInformation's address can be populated *without* the carrier and method.
+                // Therefore test if it is missing and if it is missing here just do nothing.
+                $carrierCode = $shipping->getShippingCarrierCode();
+                $methodCode = $shipping->getShippingMethodCode();
+
+                if ($carrierCode && $methodCode) {
+                    // Region in Magento is sensitive to something, so check it.
+                    $shippingAddress = $shipping->getShippingAddress();
+                    $shippingAddress = $this->checkRegion($shippingAddress);
+                    $shipping->setShippingAddress($shippingAddress);
+                    $this->shippingManager->saveAddressInformation($cartId, $shipping);
+                }
+                // Unset shipping info if already there in cart.
+                elseif ($shippingAddress = $quote->getShippingAddress()) {
+                    $shippingAddress->setShippingMethod(null);
+                    $shippingAddress->save();
+                    $updateTotals = true;
+                }
+            }
+
+            if ($payment) {
+                $this->paymentManager->set($cartId, $payment);
+            }
         }
 
         if ($updateTotals) {
@@ -496,6 +585,27 @@ class CartManagement implements ApiInterface
         } catch (NoSuchEntityException $e) {
             return (false);
         }
+    }
+
+    /**
+     * Get message of the given type in a given group.
+     *
+     * @param string $message_group
+     * @param string $message_type
+     *
+     * @return null|string
+     */
+    protected function getMessage($message_group, $message_type)
+    {
+        /** @var \Magento\Framework\Message\Collection $message_collection */
+        if ($message_collection = $this->messageManager->getMessages(true, $message_group)) {
+            /** @var \Magento\Framework\Message\MessageInterface[] $messages */
+            if (!empty($messages = $message_collection->getItemsByType($message_type))) {
+                return end($messages)->getText();
+            }
+        }
+
+        return null;
     }
 
     /**

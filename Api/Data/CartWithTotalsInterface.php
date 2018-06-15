@@ -39,4 +39,13 @@ interface CartWithTotalsInterface
      * @return \Magento\Quote\Api\Data\TotalsInterface
      */
     public function getTotals();
+
+    /**
+     * getResponseMessage
+     *
+     * Get the response message info.
+     *
+     * @return array
+     */
+    public function getResponseMessage();
 }
