@@ -83,4 +83,10 @@
                 sortOrder="10"
                 disabled="false"/>
     </type>
+    <type name="\Magento\Quote\Model\QuoteManagement">
+        <plugin name="acquia_commercemanager_plugin_quotemanagement"
+                type="Acquia\CommerceManager\Plugin\QuoteManagementPlugin"
+                sortOrder="10"
+                disabled="false"/>
+    </type>
 </config>
