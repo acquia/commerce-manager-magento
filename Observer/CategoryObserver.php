@@ -13,6 +13,7 @@ namespace Acquia\CommerceManager\Observer;
 use Acquia\CommerceManager\Model\Category\StoreTreeFactory as TreeFactory;
 use Magento\Catalog\Api\CategoryRepositoryInterface;
 use Magento\Catalog\Api\Data\CategoryInterface;
+use Magento\Framework\App\Config\ScopeConfigInterface;
 use Acquia\CommerceManager\Helper\Acm as AcmHelper;
 use Acquia\CommerceManager\Helper\Data as ClientHelper;
 use Magento\Framework\Webapi\ServiceOutputProcessor;
@@ -31,6 +32,12 @@ abstract class CategoryObserver extends ConnectorObserver
      * @const ENDPOINT_CATEGORY_MOVE
      */
     const ENDPOINT_CATEGORY_MOVE = 'ingest/category/move';
+
+    /**
+     * Conductor filter_root_category config path.
+     * @const FILTER_ROOT_CATEGORY_CONFIG_PATH
+     */
+    const FILTER_ROOT_CATEGORY_CONFIG_PATH = 'webapi/acquia_commerce_settings/filter_root_category';
 
     /**
      * Magento WebAPI Service Class Name (for output formatting)
@@ -57,6 +64,12 @@ abstract class CategoryObserver extends ConnectorObserver
     protected $categoryRepository;
 
     /**
+     * Scope Config factory.
+     * @var \Magento\Framework\App\Config\ScopeConfigInterface
+     */
+    protected $scopeConfig;
+
+    /**
      * Magento Store Manager
      * @var StoreManager $storeManager
      */
@@ -72,6 +85,7 @@ abstract class CategoryObserver extends ConnectorObserver
      * @param ClientHelper $helper
      * @param ServiceOutputProcessor $outputProcessor
      * @param LoggerInterface $logger
+     * @param ScopeConfigInterface $scopeConfig
      */
     public function __construct(
         StoreManager $storeManager,
@@ -80,11 +94,13 @@ abstract class CategoryObserver extends ConnectorObserver
         AcmHelper $acmHelper,
         ClientHelper $helper,
         ServiceOutputProcessor $outputProcessor,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        ScopeConfigInterface $scopeConfig
     ) {
         $this->storeManager = $storeManager;
         $this->categoryTreeFactory = $treeFactory;
         $this->categoryRepository = $categoryRepository;
+        $this->scopeConfig = $scopeConfig;
         parent::__construct(
             $acmHelper,
             $helper,
@@ -175,10 +191,28 @@ abstract class CategoryObserver extends ConnectorObserver
      */
     private function sendCatTreeData(CategoryInterface $category)
     {
+        $storeId = $category->getStoreId();
+
+        // Do not push category tree if root category is saved
+        // and flag in config says filter root category.
+        /** @var \Magento\Store\Model\Store $store */
+        $store = $this->storeManager->getStore($storeId);
+        if ($this->filterRootCategory() && $category->getId() === $store->getRootCategoryId()) {
+            $this->logger->debug('Not pushing for save action on root category.');
+            return;
+        }
+
+        $this->logger->debug('Pushing category tree data.', [
+            'category_id' => $category->getId(),
+            'store_id' => $storeId,
+        ]);
+
         $tree = $this->categoryTreeFactory->create();
         $node = $tree->getRootNode($category);
+
+        // Set the store id.
+        $tree->setStoreId($storeId);
         $result = $tree->getTree($node);
-        $storeId = $category->getStoreId();
 
         $edata = $this->formatApiOutput($result);
         $edata['store_id'] = $storeId;
@@ -189,5 +223,19 @@ abstract class CategoryObserver extends ConnectorObserver
         };
 
         $this->tryRequest($doReq, $this->getLogName(), $storeId);
+    }
+
+    /**
+     * Get filter root category config value.
+     *
+     * @return mixed
+     *   Config value.
+     */
+    private function filterRootCategory()
+    {
+        return $this->scopeConfig->getValue(
+            static::FILTER_ROOT_CATEGORY_CONFIG_PATH,
+            ScopeConfigInterface::SCOPE_TYPE_DEFAULT
+        );
     }
 }
