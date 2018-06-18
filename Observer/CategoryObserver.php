@@ -14,6 +14,7 @@ use Acquia\CommerceManager\Model\Category\StoreTreeFactory as TreeFactory;
 use Magento\Catalog\Api\CategoryRepositoryInterface;
 use Magento\Catalog\Api\Data\CategoryInterface;
 use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Store\Model\ScopeInterface;
 use Acquia\CommerceManager\Helper\Acm as AcmHelper;
 use Acquia\CommerceManager\Helper\Data as ClientHelper;
 use Magento\Framework\Webapi\ServiceOutputProcessor;
@@ -197,7 +198,7 @@ abstract class CategoryObserver extends ConnectorObserver
         // and flag in config says filter root category.
         /** @var \Magento\Store\Model\Store $store */
         $store = $this->storeManager->getStore($storeId);
-        if ($this->filterRootCategory() && $category->getId() === $store->getRootCategoryId()) {
+        if ($this->filterRootCategory($storeId) && $category->getId() === $store->getRootCategoryId()) {
             $this->logger->debug('Not pushing for save action on root category.');
             return;
         }
@@ -228,14 +229,17 @@ abstract class CategoryObserver extends ConnectorObserver
     /**
      * Get filter root category config value.
      *
+     * @param int $storeId
+     *
      * @return mixed
      *   Config value.
      */
-    private function filterRootCategory()
+    private function filterRootCategory($storeId = 0)
     {
         return $this->scopeConfig->getValue(
             static::FILTER_ROOT_CATEGORY_CONFIG_PATH,
-            ScopeConfigInterface::SCOPE_TYPE_DEFAULT
+            ScopeInterface::SCOPE_STORE,
+            $storeId
         );
     }
 }
