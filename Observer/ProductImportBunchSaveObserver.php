@@ -83,17 +83,7 @@ class ProductImportBunchSaveObserver extends ConnectorObserver implements Observ
         // after you have coded a CE equivalent using Magento CRON
         if($this->productBatchHelper->getMessageQueueEnabled())
         {
-            $this->logger->info('ProductImportBunchSaveObserver: Inside.');
-            $batchSize = (int)$this->productBatchHelper->getProductPushBatchSize();
-            $this->logger->info('ProductImportBunchSaveObserver: Batch Size.', [
-                'batch_size' => $batchSize,
-            ]);
-
-            // Use 5 by default.
-            // @TODO: Check if this condition is really required.
-            if (empty($batchSize)) {
-                $batchSize = 5;
-            }
+            $batchSize = $this->productBatchHelper->getProductPushBatchSize();
 
             $batch = [];
 

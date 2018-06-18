@@ -233,15 +233,13 @@ class ProductBatch extends AbstractHelper
     {
         $path = 'webapi/acquia_commerce_settings/product_push_batch_size';
 
-        $batchSize = $this->scopeConfig->getValue(
+        $batchSize = (int) $this->scopeConfig->getValue(
             $path,
             ScopeConfigInterface::SCOPE_TYPE_DEFAULT
         );
 
         // Use 5 by default.
-        if (empty($batchSize)) {
-            $batchSize = 5;
-        }
+        $batchSize = $batchSize ?? 5;
 
         return $batchSize;
     }

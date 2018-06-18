@@ -14,10 +14,10 @@ use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\Event\Observer;
 
 use Magento\Catalog\Api\ProductRepositoryInterface;
-use Magento\Catalog\Api\Data\ProductInterface;
 
 use Acquia\CommerceManager\Helper\Acm as AcmHelper;
 use Acquia\CommerceManager\Helper\Data as ClientHelper;
+use Acquia\CommerceManager\Helper\ProductBatch as ProductBatchHelper;
 use Magento\Framework\Webapi\ServiceOutputProcessor;
 use Magento\Store\Model\StoreManager;
 use Psr\Log\LoggerInterface;
@@ -29,23 +29,6 @@ use Psr\Log\LoggerInterface;
  */
 class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
 {
-    /**
-     * Connector Product Update Endpoint
-     * @const ENDPOINT_PRODUCT_UPDATE
-     */
-    const ENDPOINT_PRODUCT_UPDATE = 'ingest/product';
-
-    /**
-     * Magento WebAPI Service Class Name (for output formatting)
-     * @var string $serviceClassName
-     */
-    protected $serviceClassName = 'Magento\Catalog\Api\ProductRepositoryInterface';
-
-    /**
-     * Magento WebAPI Service Method Name (for output formatting)
-     * @var string $serviceMethodName
-     */
-    protected $serviceMethodName = 'get';
 
     /**
      * Magento Product Repository
@@ -60,10 +43,17 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
     private $storeManager;
 
     /**
+     * Product Batch helper object.
+     * @var ProductBatchHelper $batchHelper
+     */
+    private $batchHelper;
+
+    /**
      * ProductSaveObserver constructor.
      * @param StoreManager $storeManager
      * @param ProductRepositoryInterface $productRepository
      * @param AcmHelper $acmHelper
+     * @param ProductBatchHelper $batchHelper
      * @param ClientHelper $helper
      * @param ServiceOutputProcessor $outputProcessor
      * @param LoggerInterface $logger
@@ -72,6 +62,7 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
         StoreManager $storeManager,
         ProductRepositoryInterface $productRepository,
         AcmHelper $acmHelper,
+        ProductBatchHelper $batchHelper,
         ClientHelper $helper,
         ServiceOutputProcessor $outputProcessor,
         LoggerInterface $logger
@@ -89,7 +80,7 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
     /**
      * execute
      *
-     * Send updated category data to Acquia Commerce Manager.
+     * Send updated product data to Acquia Commerce Manager.
      *
      * @param Observer $observer Incoming Observer
      *
@@ -97,18 +88,22 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
      */
     public function execute(Observer $observer)
     {
+        $output = [];
+
+        /** @var \Magento\Catalog\Model\Product $product */
         $product = $observer->getEvent()->getProduct();
-        $this->logger->notice(
-            sprintf('ProductSaveObserver: save product %d.', $product->getId()),
-            ['sku' => $product->getSku(), 'store_id' => $product->getStoreId()]
-        );
+
+        $this->logger->debug('ProductSaveObserver: saved product.', [
+            'sku' => $product->getSku(),
+            'id' => $product->getId(),
+            'store_id' => $product->getStoreId(),
+        ]);
 
         // If the product data being saved is the base / default values,
         // send updated store specific products as well (that may inherit
         // base field value updates) for all of the stores that the
         // product is assigned.
-
-        $stores = $product->getStoreIds();
+        $stores = $product->getStoreId() == 0 ? $product->getStoreIds() : [$product->getStoreId()];
 
         foreach ($stores as $storeId) {
             // Never send the admin store.
@@ -123,20 +118,23 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
                 continue;
             }
 
-            $this->logger->notice(
-                sprintf('ProductSaveObserver: sending product for store %d.', $storeId),
-                ['sku' => $product->getSku(), 'id' => $product->getId()]
-            );
-
             $storeProduct = $this->productRepository->getById(
                 $product->getId(),
                 false,
                 $storeId
             );
 
-            if ($storeProduct) {
-                $this->sendProductData($storeProduct, $storeId);
+            if (empty($storeProduct)) {
+                continue;
             }
+
+            $this->logger->debug('ProductSaveObserver: sending product.', [
+                'sku' => $storeProduct->getSku(),
+                'id' => $storeProduct->getId(),
+                'store_id' => $storeId,
+            ]);
+
+            $output[$storeId][] = $this->acmHelper->getProductDataForAPI($storeProduct);
         }
 
         // For the sites in which product is removed, we will send the product
@@ -178,39 +176,16 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
                         'store_id' => $storeId,
                     ]);
 
-                    $this->sendProductData($storeProduct, $storeId, true);
+                    $record = $this->acmHelper->getProductDataForAPI($storeProduct);
+                    $record['status'] = \Magento\Catalog\Model\Product\Attribute\Source\Status::STATUS_DISABLED;
+                    $output[$storeId][] = $record;
                 }
             }
         }
 
-    }
-
-    /**
-     * sendProductData
-     *
-     * Send product data to the Connector API endpoint.
-     *
-     * @param ProductInterface $product Product to send
-     * @param mixed $storeId Store ID (string/int)
-     * @param bool $forceDisabled Force product to be sent as disabled
-     *
-     * @return void
-     */
-    private function sendProductData(ProductInterface $product, $storeId, $forceDisabled = false)
-    {
-        $record = $this->acmHelper->getProductDataForAPI($product);
-
-        if ($forceDisabled) {
-            $record['status'] = \Magento\Catalog\Model\Product\Attribute\Source\Status::STATUS_DISABLED;
+        if ($output) {
+            $this->batchHelper->pushMultipleProducts($output, 'productSave');
         }
-
-        $doReq = function ($client, $opt) use ($record) {
-            // Commerce Connector spec says always send an array.
-            $opt['json'] = [$record];
-
-            return $client->post(self::ENDPOINT_PRODUCT_UPDATE, $opt);
-        };
-
-        $this->tryRequest($doReq, 'ProductSaveObserver', $storeId);
     }
+
 }
