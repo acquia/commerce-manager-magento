@@ -44,6 +44,7 @@ class CartWithTotals implements CartWithTotalsInterface
      *
      * @param CartInterface $quote
      * @param TotalsInterface|null $totals
+     * @param array $responseMessage
      */
     public function __construct(
         CartInterface $quote,
