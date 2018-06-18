@@ -15,11 +15,11 @@
         <section id="webapi">
             <group id="acquia_commerce" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
                 <label>Acquia Commerce API Settings</label>
-                <field id="connector_url" translate="label comment" type="text" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
+                <field id="connector_url" translate="label comment" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Acquia Commerce Connector URL</label>
                     <comment>Base URL of Acquia Commerce Connector Instance. For example "https://commerceconnector.acquia.com". Do not include the api version.</comment>
                 </field>
-                <field id="connector_api_version_path" translate="label" type="select" sortOrder="11" showInDefault="1" showInWebsite="0" showInStore="0">
+                <field id="connector_api_version_path" translate="label" type="select" sortOrder="11" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Connector version</label>
                     <comment>Indicate which version of the Commerce Connector Service you are using. If you don't know then it is probably version two but please ask your Acquia account manager to confirm it.</comment>
                     <source_model>Acquia\CommerceManager\Model\Config\Source\ApiVersion</source_model>

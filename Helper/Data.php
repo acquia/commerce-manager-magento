@@ -114,19 +114,19 @@ class Data extends AbstractHelper
 
         // Create key and middleware.
         $key = new Key(
-            $this->getApiConfigData('acquia_commerce_security/ac_hmac_id'),
-            base64_encode($this->getApiConfigData('acquia_commerce_security/ac_hmac_secret'))
+            $this->getApiConfigData('acquia_commerce_security/ac_hmac_id', $storeId),
+            base64_encode($this->getApiConfigData('acquia_commerce_security/ac_hmac_secret', $storeId))
         );
         $middleware = new HmacAuthMiddleware($key);
         // Register the middleware.
         $stack = HandlerStack::create();
         $stack->push($middleware);
 
-        $basePath = $this->getApiConfigData('acquia_commerce/connector_url');
+        $basePath = $this->getApiConfigData('acquia_commerce/connector_url', $storeId);
         // Clean any trailing slashes or incumbent version paths.
         // Assumes any incumbent version path is "v0" to "v9"
         $basePath = preg_replace("#\\/v\\d\\/{0,1}$|\\/$#", "", $basePath);
-        $apiVersionPath = $this->getApiConfigData('acquia_commerce/connector_api_version_path');
+        $apiVersionPath = $this->getApiConfigData('acquia_commerce/connector_api_version_path', $storeId);
         $baseUri = $basePath . "/" . $apiVersionPath . "/";
 
         return array_merge(
