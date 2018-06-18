@@ -11,8 +11,8 @@
 namespace Acquia\CommerceManager\Model;
 
 use Acquia\CommerceManager\Api\ProductSyncManagementInterface;
-use Acquia\CommerceManager\Helper\Data as ClientHelper;
 use Acquia\CommerceManager\Helper\Acm as AcmHelper;
+use Acquia\CommerceManager\Helper\ProductBatch as ProductBatchHelper;
 use Magento\Catalog\Api\ProductRepositoryInterface;
 use Magento\Catalog\Model\Product\Attribute\Source\Status;
 use Magento\Framework\Api\SearchCriteriaBuilder;
@@ -28,21 +28,15 @@ use Magento\Catalog\Api\Data\ProductSearchResultsInterfaceFactory;
 class ProductSyncManagement implements ProductSyncManagementInterface
 {
     /**
-     * Connector Product Update Endpoint
-     * @const ENDPOINT_PRODUCT_UPDATE
-     */
-    const ENDPOINT_PRODUCT_UPDATE = 'ingest/product';
-
-    /**
      * @var AcmHelper $acmHelper
      */
     private $acmHelper;
 
     /**
-     * Acquia Commerce Manager Client Helper
-     * @var ClientHelper $clientHelper
+     * Product Batch helper object.
+     * @var ProductBatchHelper $batchHelper
      */
-    private $clientHelper;
+    private $batchHelper;
 
     /**
      * @var ProductRepositoryInterface $productRepository
@@ -55,11 +49,8 @@ class ProductSyncManagement implements ProductSyncManagementInterface
     private $searchCriteriaBuilder;
 
     /**
-     * Catalog rule model.
-     * @var \Magento\CatalogRule\Model\Rule $catalogRule
+     * @var LoggerInterface $logger
      */
-    protected $catalogRule;
-
     protected $logger;
 
     /**
@@ -69,23 +60,25 @@ class ProductSyncManagement implements ProductSyncManagementInterface
 
     /**
      * ProductSyncManagement constructor.
+     *
      * @param AcmHelper $acmHelper
+     * @param ProductBatchHelper $batchHelper
      * @param StoreManagerInterface $storeManager
-     * @param ClientHelper $clientHelper
      * @param SearchCriteriaBuilder $searchCriteriaBuilder
      * @param ProductRepositoryInterface $productRepository
+     * @param LoggerInterface $logger
      */
     public function __construct(
         AcmHelper $acmHelper,
+        ProductBatchHelper $batchHelper,
         StoreManagerInterface $storeManager,
-        ClientHelper $clientHelper,
         SearchCriteriaBuilder $searchCriteriaBuilder,
         ProductRepositoryInterface $productRepository,
         LoggerInterface $logger
     ) {
         $this->acmHelper = $acmHelper;
+        $this->batchHelper = $batchHelper;
         $this->storeManager = $storeManager;
-        $this->clientHelper = $clientHelper;
         $this->searchCriteriaBuilder = $searchCriteriaBuilder;
         $this->productRepository = $productRepository;
         $this->logger = $logger;
@@ -94,16 +87,15 @@ class ProductSyncManagement implements ProductSyncManagementInterface
     /**
      * {@inheritdoc}
      */
-    public function syncProducts($page_count, $page_size = 50, $skus = '', $category_id = '', $async = 1)
+    public function syncProducts($page_count, $page_size = 50, $skus = '', $category_ids = '', $async = 1)
     {
+        // IN conditions might probably not work as expected.
+        // There is an issue already reported in Magento for this.
+        // Check https://github.com/magento/magento2/issues/2892 for reference.
         // Set collection filters.
         if (!empty($skus))
         {
             $this->searchCriteriaBuilder->addFilter('sku', explode(',', $skus), 'in');
-        }
-        else if ($category_id)
-        {
-            $this->searchCriteriaBuilder->addFilter('category_id', explode(',', $category_id), 'in');
         }
         else
         {
@@ -111,6 +103,12 @@ class ProductSyncManagement implements ProductSyncManagementInterface
             // We will skip this check if we are specifically asked to sync
             // some SKUs.
             $this->searchCriteriaBuilder->addFilter('status', Status::STATUS_ENABLED);
+        }
+
+        // Filter by category.
+        if ($category_ids)
+        {
+            $this->searchCriteriaBuilder->addFilter('category_id', explode(',', $category_ids), 'in');
         }
 
         /** @var \Magento\Framework\Api\SearchCriteriaInterface $search_criteria */
@@ -158,7 +156,7 @@ class ProductSyncManagement implements ProductSyncManagementInterface
                     'product_website_ids' => $websiteIds,
                 ]);
 
-                $record['status'] = \Magento\Catalog\Model\Product\Attribute\Source\Status::STATUS_DISABLED;
+                $record['status'] = Status::STATUS_DISABLED;
             }
 
             $storeId = $record['store_id'];
@@ -168,18 +166,7 @@ class ProductSyncManagement implements ProductSyncManagementInterface
 
 
         if ($async != 0) {
-            // We need to have separate requests per store so we can assign them
-            // correctly in middleware.
-            foreach ($output as $storeId => $arrayOfProducts) {
-                $this->logger->info('Product sync sender. Sending store '.$storeId.'');
-                // Send Connector request.
-                $doReq = function ($client, $opt) use ($arrayOfProducts) {
-                    $opt['json'] = $arrayOfProducts;
-                    return $client->post(self::ENDPOINT_PRODUCT_UPDATE, $opt);
-                };
-
-                $this->clientHelper->tryRequest($doReq, 'syncProducts', $storeId);
-            }
+            $this->batchHelper->pushMultipleProducts($output, 'syncProducts');
             return (true);
         }
         else {
