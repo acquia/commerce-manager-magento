@@ -22,7 +22,7 @@ class QuoteManagementPlugin
      * We want to ensure a payment method is always present
      * before placeOrder is called.
      *
-     * You might ask why this is necessary. A cursory glance thorugh the code will
+     * You might ask why this is necessary. A cursory glance through the code will
      * identify a number of different processes for placing orders. The Magneto API
      * calls this placeOrder function which has some code-repetition from
      * \Magento\Quote\Model\PaymentMethodManagement::set() but the code is not identical.
