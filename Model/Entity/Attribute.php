@@ -1,16 +1,15 @@
 <?php
 
 /**
- * Acquia/CommerceManager/Model/Product/Attribute/OptionManagement.php
+ * Acquia/CommerceManager/Model/Product/Attribute/Attribute.php
  *
- * Product Attribute Options with Swatches data.
+ * Product Attribute with Swatches data.
  *
  * All rights reserved. No unauthorized distribution or reproduction.
  */
 
 namespace Acquia\CommerceManager\Model\Entity;
 
-use Acquia\CommerceManager\Api\Data\AttributeInterface;
 use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Api\AttributeValueFactory;
 use Magento\Framework\Stdlib\DateTime\DateTimeFormatterInterface;
