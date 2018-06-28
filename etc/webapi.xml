@@ -152,5 +152,19 @@
         </resources>
     </route>
 
+    <route url="/V1/products/attributes-with-swatches/:attributeCode" method="GET">
+        <service class="Acquia\CommerceManager\Api\ProductAttributeRepositoryInterface" method="get"/>
+        <resources>
+            <resource ref="Magento_Catalog::attributes_attributes" />
+        </resources>
+    </route>
+
+    <route url="/V1/products/attributes-with-swatches" method="GET">
+        <service class="Acquia\CommerceManager\Api\ProductAttributeRepositoryInterface" method="getList" />
+        <resources>
+            <resource ref="Magento_Catalog::attributes_attributes" />
+        </resources>
+    </route>
+
 </routes>
 

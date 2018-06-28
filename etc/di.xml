@@ -28,6 +28,8 @@
     <preference for="Acquia\CommerceManager\Api\ShippingAddressManagementInterface" type="Magento\Quote\Model\ShippingAddressManagement" />
     <preference for="Acquia\CommerceManager\Api\Data\VerifyConfigurationInterface" type="Acquia\CommerceManager\Model\Data\VerifyConfiguration" />
     <preference for="Acquia\CommerceManager\Api\VerifyConfigurationInterface" type="Acquia\CommerceManager\Model\VerifyConfiguration" />
+    <preference for="Magento\Catalog\Api\Data\ProductAttributeInterface" type="Acquia\CommerceManager\Model\Entity\Attribute" />
+    <preference for="Acquia\CommerceManager\Api\ProductAttributeRepositoryInterface" type="Acquia\CommerceManager\Model\Product\Attribute\Repository" />
 
     <!-- Class overrides -->
     <preference for ="\Magento\CatalogRule\Model\ResourceModel\Rule\Collection" type="\Acquia\CommerceManager\Model\ResourceModel\Rule\Collection" />
