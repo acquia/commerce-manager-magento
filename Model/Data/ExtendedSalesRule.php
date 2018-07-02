@@ -20,6 +20,7 @@ use Magento\SalesRule\Model\Data\Rule;
 class ExtendedSalesRule extends Rule implements \Acquia\CommerceManager\Api\Data\ExtendedSalesRuleInterface
 {
     const KEY_DISCOUNT_DATA = 'product_discounts';
+    const KEY_COUPON_CODE = 'coupon_code';
 
     /**
      * {@inheritDoc}
@@ -35,5 +36,19 @@ class ExtendedSalesRule extends Rule implements \Acquia\CommerceManager\Api\Data
     public function setProductDiscounts(array $discounts)
     {
         return ($this->setData(self::KEY_DISCOUNT_DATA, $discounts));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getCouponCode() {
+        return ($this->_get(self::KEY_COUPON_CODE));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function setCouponCode(String $coupon_code) {
+        return ($this->setData(self::KEY_DISCOUNT_DATA, $coupon_code));
     }
 }
