@@ -13,7 +13,6 @@ namespace Acquia\CommerceManager\Model;
 use Acquia\CommerceManager\Api\SalesRuleRepositoryInterface;
 use Acquia\CommerceManager\Model\Converter\ToSalesRuleExtendedDataModel as ToDataModel;
 use Magento\SalesRule\Model\ResourceModel\Rule\CollectionFactory;
-use Magento\Framework\Reflection\DataObjectProcessor;
 use Magento\Framework\Api\ExtensionAttribute\JoinProcessorInterface;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Store\Model\StoreManagerInterface;
@@ -118,6 +117,7 @@ class SalesRuleRepository implements SalesRuleRepositoryInterface
         $results = [];
 
         // Load / convert to data models and add discount data
+        /** @var \Magento\SalesRule\Model\Rule $rule */
         foreach ($rules as $rule) {
             $rid = $rule->getId();
             $rule->load($rid);
@@ -128,8 +128,8 @@ class SalesRuleRepository implements SalesRuleRepositoryInterface
                     $this->discountData[$rid] :
                     [];
             $coupon_code =
-                (!empty($this->getCouponCode())) ?
-                    $this->getCouponCode() :
+                (!empty($rule->getCouponCode())) ?
+                    $rule->getCouponCode() :
                     '';
             $result->setCouponCode($coupon_code);
             $result->setProductDiscounts($discounts);
