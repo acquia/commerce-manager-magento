@@ -243,6 +243,13 @@ class Acm extends AbstractHelper
             $this->mediaGalleryAttributeId
         );
 
+        // We should add media roles in response.
+        // Using roles list from magento/module-elasticsearch/Model/Adapter/DataMapper/ProductDataMapper.php class.
+        $attributes['image'] = $this->product->getImage();
+        $attributes['small_image'] = $this->product->getSmallImage();
+        $attributes['base_image'] = $this->product->getBaseImage();
+        $attributes['swatch_image'] = $this->product->getSwatchImage();
+
         foreach ($mediaEntries as $mediaEntry) {
             $filterEntry = [];
             foreach ($mediaEntry as $key => $rawValue) {
@@ -257,6 +264,13 @@ class Acm extends AbstractHelper
             }
 
             if (isset($filterEntry['file'])) {
+                $filterEntry['roles'] = [];
+                foreach ($attributes as $role => $file) {
+                    if ($filterEntry['file'] == $file) {
+                        $filterEntry['roles'][] = $role;
+                    }
+                }
+
                 $filterEntry['file'] =
                     $this->product->getMediaConfig()->getMediaUrl($filterEntry['file']);
             }
