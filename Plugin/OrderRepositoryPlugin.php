@@ -4,6 +4,8 @@ namespace Acquia\CommerceManager\Plugin;
 
 class OrderRepositoryPlugin
 {
+    /** @var \Magento\Framework\App\State */
+    private $appState;
     /** @var \Magento\Store\Model\StoreManagerInterface */
     private $storeManager;
     /** @var \Magento\Framework\Api\FilterFactory */
@@ -14,12 +16,14 @@ class OrderRepositoryPlugin
     private $configShare;
 
     public function __construct(
+        \Magento\Framework\App\State $appState,
         \Magento\Store\Model\StoreManagerInterface $storeManager,
         \Magento\Framework\Api\FilterFactory $filterFactory,
         \Magento\Framework\Api\Search\FilterGroupFactory $filterGroupFactory,
         \Magento\Customer\Model\Config\Share $configShare
     )
     {
+        $this->appState = $appState;
         $this->storeManager = $storeManager;
         $this->filterFactory = $filterFactory;
         $this->filterGroupFactory = $filterGroupFactory;
@@ -46,6 +50,11 @@ class OrderRepositoryPlugin
         \Magento\Framework\Api\SearchCriteriaInterface $searchCriteria
     )
     {
+        // Restrict this plugin to restAPI only
+        $notRestApi = !($this->appState->getAreaCode() == \Magento\Framework\App\Area::AREA_WEBAPI_REST);
+        if ($notRestApi) {
+            return [$searchCriteria];
+        }
 
         // Only act if customers are website scoped and this is not the admin store (store_id == 0)
         if($this->configShare->isWebsiteScope() && $this->storeManager->getStore()->getId() != 0)

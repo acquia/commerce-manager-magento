@@ -108,6 +108,12 @@ class CustomerRepositoryPlugin
         \Magento\Framework\Api\SearchCriteriaInterface $searchCriteria
     )
     {
+        // Restrict this plugin to restAPI only
+        $notRestApi = !($this->appState->getAreaCode() == \Magento\Framework\App\Area::AREA_WEBAPI_REST);
+        if ($notRestApi) {
+            return [$searchCriteria];
+        }
+
         if($this->configShare->isWebsiteScope())
         {
             // Then respect the website of the current store.
