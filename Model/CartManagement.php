@@ -327,10 +327,23 @@ class CartManagement implements ApiInterface
     ) {
         $response_message = [];
         $updateTotals = false;
+        $itemsRemovedByPromotions = [];
 
-        // We always remove the coupon first and apply again.
-        if ($currentCoupon = $this->couponManager->get($cartId)) {
+        $itemsInQuote = $this->getItemsInQuote($cartId);
+
+        // We remove the coupon first if doesn't match what is
+        // there in new request.
+        $currentCoupon = $this->couponManager->get($cartId);
+        if ($currentCoupon && $currentCoupon != $coupon) {
             $this->couponManager->remove($cartId);
+
+            // If we are removing coupon, lets remove any items from
+            // quote that where removed by MDC.
+            // For promotions like free gift items, they are removed
+            // from cart and we end up into error as our request
+            // still contains them.
+            $itemsInQuoteAfterCouponRemoval = $this->getItemsInQuote($cartId);
+            $itemsRemovedByPromotions = array_diff_key($itemsInQuote, $itemsInQuoteAfterCouponRemoval);
         }
 
         $quote = $this->quoteRepository->getActive($cartId);
@@ -358,6 +371,11 @@ class CartManagement implements ApiInterface
         if (is_array($items)) {
             // Loop through all items to build index array.
             foreach ($items as $item) {
+                // Ignore cart item in request removed by promotion.
+                if (isset($itemsRemovedByPromotions[$item->getSku()])) {
+                    continue;
+                }
+
                 $new_items_index[$item->getSku()] = $item->getQty();
             }
         }
