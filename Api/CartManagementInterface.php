@@ -50,7 +50,7 @@ interface CartManagementInterface
     public function associateCart(
         $customerId,
         $cartId,
-        $storeId,
+        $storeId = null,
         $couponCode = null
     );
 
