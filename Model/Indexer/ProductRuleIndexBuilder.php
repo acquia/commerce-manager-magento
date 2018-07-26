@@ -31,6 +31,20 @@ class ProductRuleIndexBuilder extends IndexBuilder
 {
 
     /**
+     * Contains the items pushed in queue already.
+     *
+     * @var array
+     */
+    protected $pushedItems = [];
+
+    /**
+     * If reindexing by id.
+     *
+     * @var bool
+     */
+    protected $reindexbyId = FALSE;
+
+    /**
      * Batch helper.
      * @var ProductBatch $batchHelper
      */
@@ -67,12 +81,27 @@ class ProductRuleIndexBuilder extends IndexBuilder
         // Execute parent processing first.
         $object = parent::saveRuleProductPrices($arrData);
 
+        // If its re-indexed by id, it means we not doing full-reindexing and
+        //thus no need to process.
+        if ($this->reindexbyId) {
+          return $object;
+        }
+
         $productIds = [];
 
         try {
             // Prepare products to send to queue.
             foreach ($arrData as $key => $data) {
-                $productIds[] = $data['product_id'];
+              $productIds[$data['product_id']] = $data['product_id'];
+            }
+
+            // Get items which are not pushed to queue yet.
+            $productIds = array_diff($productIds, $this->pushedItems);
+            $this->pushedItems += $productIds;
+
+            // If empty, means items pushed already.
+            if (empty($productIds)) {
+                return $object;
             }
 
             // Get batch size from config.
@@ -107,6 +136,17 @@ class ProductRuleIndexBuilder extends IndexBuilder
         }
 
         return $object;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function reindexById($id)
+    {
+        // Marking this as true so that we know we indexing individual items and
+        // not full re-index.
+        $this->reindexbyId = TRUE;
+        parent::reindexById($id);
     }
 
 }
