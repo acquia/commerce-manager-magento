@@ -182,6 +182,7 @@ class CartManagement implements ApiInterface
         DataObjectProcessor $dataProcessor,
         State $appMode
     ) {
+        $this->storeManager = $storeManager;
         $this->regionFactory = $regionFactory;
         $this->logger = $logger;
         $this->cartExtensionFactory = $cartExtensionFactory;
