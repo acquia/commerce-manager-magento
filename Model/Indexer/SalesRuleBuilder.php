@@ -10,7 +10,7 @@
 
 namespace Acquia\CommerceManager\Model\Indexer;
 
-use Magento\CatalogUrlRewrite\Model\ResourceModel\Category\ProductCollection;
+use Magento\Catalog\Model\ResourceModel\Product\Collection;
 use Magento\Framework\App\ResourceConnection;
 use Magento\Catalog\Model\Product\Attribute\Source\Status;
 use Magento\Catalog\Model\ResourceModel\Product\CollectionFactory as ProductCollectionFactory;
@@ -19,6 +19,7 @@ use Magento\SalesRule\Model\Rule as SalesRule;
 use Magento\SalesRule\Model\Rule\Condition\Product as ProductCondition;
 use Magento\SalesRule\Model\ResourceModel\Rule\Collection as RuleCollection;
 use Magento\SalesRule\Model\ResourceModel\Rule\CollectionFactory as RuleCollectionFactory;
+use Magento\Store\Model\Store;
 use Magento\Store\Model\StoreManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -76,11 +77,11 @@ class SalesRuleBuilder
      * SalesRuleBuilder constructor.
      *
      * @param ProductCollectionFactory $productCollection
-     * @param RuleCollectionFactory    $ruleCollection
-     * @param ResourceConnection       $resource
-     * @param StoreManagerInterface    $storeManager
+     * @param RuleCollectionFactory $ruleCollection
+     * @param ResourceConnection $resource
+     * @param StoreManagerInterface $storeManager
      * @param LoggerInterface $logger
-     * @param int                      $batchSize
+     * @param int $batchSize
      */
     public function __construct(
         ProductCollectionFactory $productCollection,
@@ -120,8 +121,8 @@ class SalesRuleBuilder
 
         // Generate new product indexes
 
-        $buildProducts = function () use ($ids) {
-            return ($this->getProductCollection()->addIdFilter($ids));
+        $buildProducts = function ($websiteId) use ($ids) {
+            return ($this->getProductCollection($websiteId)->addIdFilter($ids));
         };
 
         $rules = $this->getRuleCollection();
@@ -192,8 +193,8 @@ class SalesRuleBuilder
         $buildProducts = null
     ) {
         if (!$buildProducts || !is_callable($buildProducts)) {
-            $buildProducts = function () {
-                return ($this->getProductCollection());
+            $buildProducts = function ($websiteId) {
+                return ($this->getProductCollection($websiteId));
             };
         }
 
@@ -204,47 +205,71 @@ class SalesRuleBuilder
                 continue;
             }
 
-            $products_processed = FALSE;
+            $products_processed = false;
 
             $conditions = $this->locateProductConditions(
                 $rule->getConditions()->getConditions()
             );
 
-            try {
-                if (!empty($conditions)) {
-                    // Assemble matching products collection to rule conditions
-                    $products = $buildProducts();
-                    $this->filterProducts($products, $conditions);
-                    $this->addProductsToIndex($products, $rule);
-                    $products_processed = TRUE;
-                }
-            }
-            catch (\RuntimeException $e) {
-                continue;
-            }
-
             $actionConditions = $this->locateProductConditions(
                 $rule->getActions()->getConditions()
             );
 
-            try {
+            // Process the conditions for each website separately.
+            // We can have different products for different websites.
+            foreach ($rule->getWebsiteIds() as $websiteId) {
+                if (!empty($conditions)) {
+                    $products = $buildProducts($websiteId);
+                    $processed = $this->processConditions(
+                            $products,
+                            $conditions,
+                            $websiteId,
+                            $rule->getRuleId()
+                        );
+                    $products_processed = $products_processed || $processed;
+                }
+
                 if (!empty($actionConditions)) {
-                    // Assemble matching products collection to rule conditions
-                    $actionProducts = $buildProducts();
-                    $this->filterProducts($actionProducts, $actionConditions);
-                    $this->addProductsToIndex($actionProducts, $rule);
-                    $products_processed = TRUE;
+                    $products = $buildProducts($websiteId);
+                    $processed = $this->processConditions(
+                            $products,
+                            $actionConditions,
+                            $websiteId,
+                            $rule->getRuleId()
+                        );
+                    $products_processed = $products_processed || $processed;
                 }
             }
-            catch (\RuntimeException $e) {
-                continue;
-            }
+
 
             if (!$products_processed) {
-                $this->logger->warning('No products conditions available for rule. Labels wont be displayed', [
-                    $rule->getId(),
-                ]);
+                $this->logger->warning(
+                    'No products conditions available for rule. Labels wont be displayed', [
+                        $rule->getId(),
+                    ]
+                );
             }
+        }
+    }
+
+    /**
+     * Process the conditions and add matching products to index.
+     *
+     * @param $products
+     * @param $conditions
+     * @param int $websiteId
+     * @param int $ruleId
+     * @return bool
+     */
+    protected function processConditions($products, $conditions, $websiteId, $ruleId)
+    {
+        try {
+            // Assemble matching products collection to rule conditions
+            $this->filterProducts($products, $conditions, $websiteId);
+            $this->addProductsToIndex($products, $websiteId, $ruleId);
+            return true;
+        } catch (\RuntimeException $e) {
+            return false;
         }
     }
 
@@ -254,59 +279,46 @@ class SalesRuleBuilder
      * Helper function to add filtered products to index.
      *
      * @param $products
-     * @param SalesRule $rule
+     * @param int $websiteId
+     * @param int $ruleId
      */
-    protected function addProductsToIndex($products, SalesRule $rule) {
+    protected function addProductsToIndex($products, $websiteId, $ruleId)
+    {
         $rows = [];
 
-        $ruleWebsiteIds = $rule->getWebsiteIds();
+        // Iterate matched products and add them to index.
+        foreach ($products as $product) {
+            $websiteIds = $product->getWebsiteIds();
 
-            // Iterate matched products and calculate discounts
-            foreach ($products as $product) {
-                foreach ($product->getWebsiteIds() as $storeId) {
-                // Check product store id against store ids allowed in rule.
-                if (!in_array($storeId, $ruleWebsiteIds)) {
-                    continue;
-                }
+            // Check product has website id for which we are processing.
+            if (!in_array($websiteId, $websiteIds)) {
+                continue;
+            }
 
-                // Check if store id exists. This is to ensure we don't face
-                // issues because of corrupt data.
-                try {
-                    $this->storeManager->getStore($storeId);
-                }
-                catch (\Exception $e) {
-                    $this->logger->warning('Junk store found in product.', [
-                        $product->getId(),
-                        $storeId,
-                    ]);
+            if (isset($this->duplicatesCheck[$ruleId][$websiteId][$product->getId()])) {
+                continue;
 
-                    continue;
-                }
+            }
 
-                if (isset($this->duplicatesCheck[$rule->getId()][$storeId][$product->getId()])) {
-                    continue;
-                }
+            $this->duplicatesCheck[$ruleId][$websiteId][$product->getId()] = 1;
 
-                $this->duplicatesCheck[$rule->getId()][$storeId][$product->getId()] = 1;
+            $rows[] = [
+                'rule_id' => $ruleId,
+                'product_id' => $product->getId(),
+                // We don't use rule price for cart rules.
+                'rule_price' => 1,
+                'website_id' => $websiteId,
+            ];
 
-                        $rows[] = [
-                            'rule_id' => $rule->getId(),
-                            'product_id' => $product->getId(),
-                    // We don't use rule price for cart rules.
-                    'rule_price' => 1,
-                            'website_id' => $storeId,
-                        ];
+            if (count($rows) >= $this->batchSize) {
+                $this->connection->insertMultiple(
+                    $this->resource->getTableName('acq_salesrule_product'),
+                    $rows
+                );
 
-                        if (count($rows) >= $this->batchSize) {
-                            $this->connection->insertMultiple(
-                                $this->resource->getTableName('acq_salesrule_product'),
-                                $rows
-                            );
-
-                            $rows = [];
-                        }
-                    }
-                }
+                $rows = [];
+            }
+        }
 
         if (!empty($rows)) {
             $this->connection->insertMultiple(
@@ -332,15 +344,15 @@ class SalesRuleBuilder
             $value = $prodCond->getValueParsed();
 
             $comparisons = [
-                '=='  => 'eq',
-                '!='  => 'neq',
-                '>'   => 'gt',
-                '>='  => 'gteq',
-                '<'   => 'lt',
-                '<='  => 'lteq',
-                '()'  => 'in',
+                '==' => 'eq',
+                '!=' => 'neq',
+                '>' => 'gt',
+                '>=' => 'gteq',
+                '<' => 'lt',
+                '<=' => 'lteq',
+                '()' => 'in',
                 '!()' => 'nin',
-                '{}'  => 'in',
+                '{}' => 'in',
                 '!{}' => 'nin',
             ];
 
@@ -454,14 +466,20 @@ class SalesRuleBuilder
      * Build a collection of enabled simple products to compare to
      * available rule conditions.
      *
-     * @return ProductCollection $products
+     * @param int $websiteId
+     *
+     * @return Collection $products
      */
-    protected function getProductCollection()
+    protected function getProductCollection($websiteId)
     {
         $products = $this->productCollection->create();
 
+        $storeId = $this->getStoreIdFromWebsiteId($websiteId);
+        $products->setStore($storeId);
+
         $products
             ->addAttributeToSelect('*')
+            ->addStoreFilter($storeId)
             ->addAttributeToFilter('status', Status::STATUS_ENABLED);
 
         return ($products);
@@ -482,5 +500,24 @@ class SalesRuleBuilder
         $rules->addFieldToFilter('is_active', 1);
 
         return ($rules);
+    }
+
+    /**
+     * Helper function to get store id form website id.
+     *
+     * @param int $websiteId
+     * @return int
+     * @throws \Magento\Framework\Exception\LocalizedException
+     */
+    protected function getStoreIdFromWebsiteId($websiteId) {
+        static $mapping = [];
+
+        if (isset($mapping[$websiteId])) {
+            return $mapping[$websiteId];
+        }
+
+        $website = $this->storeManager->getWebsite($websiteId);
+        $mapping[$websiteId] = $website->getDefaultStore()->getStoreId();
+        return $mapping[$websiteId];
     }
 }
