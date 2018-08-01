@@ -115,10 +115,10 @@ class Stock
     }
 
     /**
-     * Update product after stock table update.
+     * Push details about stock change to queue for pushing further.
      *
      * @param StockUpdateIdx $idx
-     * @param mix            $result
+     * @param mix $result
      *
      * @return mixed
      */
@@ -146,6 +146,48 @@ class Stock
         }
 
         return $result;
+    }
+
+    /**
+     * Push all products to queue.
+     *
+     * This will be used for MODE:NONZERO and MODE:FULL.
+     *
+     * @param StockUpdateIdx $idx
+     * @param callable $original
+     * @param $stockId
+     */
+    public function aroundApplyIndexTableToStockTable(StockUpdateIdx $idx, callable $original, $stockId) {
+        $this->logger->info('Inside afterApplyIndexTableToStockTable', ['stock_id' => $stockId]);
+
+        // Execute the original method and remember the result.
+        $original($stockId);
+
+        // Load all products with stock.
+        $select = $this->connection->select()->from(
+            $this->resource->getTableName('cataloginventory_stock_item'),
+            ['product_id', 'website_id', 'qty']
+        );
+
+        $select->where('stock_id IN (?)', $stockId);
+
+        $products = $this->connection->fetchAll($select);
+
+        if (empty($products)) {
+            return;
+        }
+
+        foreach ($products as $row) {
+            $data = [
+                'id' => $row['product_id'],
+                'website_ids' => $row['website_id'],
+                'qty' => $row['qty'],
+            ];
+
+            $message = json_encode($data);
+
+            $this->stockHelper->addStockMessageToQueue($message);
+        }
     }
 
     /**
