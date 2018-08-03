@@ -38,13 +38,6 @@ class ProductRuleIndexBuilder extends IndexBuilder
     protected $pushedItems = [];
 
     /**
-     * If reindexing by id.
-     *
-     * @var bool
-     */
-    protected $reindexbyId = FALSE;
-
-    /**
      * Batch helper.
      * @var ProductBatch $batchHelper
      */
@@ -80,12 +73,6 @@ class ProductRuleIndexBuilder extends IndexBuilder
     {
         // Execute parent processing first.
         $object = parent::saveRuleProductPrices($arrData);
-
-        // If its re-indexed by id, it means we not doing full-reindexing and
-        //thus no need to process.
-        if ($this->reindexbyId) {
-          return $object;
-        }
 
         $productIds = [];
 
@@ -136,17 +123,6 @@ class ProductRuleIndexBuilder extends IndexBuilder
         }
 
         return $object;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    public function reindexById($id)
-    {
-        // Marking this as true so that we know we indexing individual items and
-        // not full re-index.
-        $this->reindexbyId = TRUE;
-        parent::reindexById($id);
     }
 
 }
