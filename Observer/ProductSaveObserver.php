@@ -69,6 +69,7 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
     ) {
         $this->storeManager = $storeManager;
         $this->productRepository = $productRepository;
+        $this->batchHelper = $batchHelper;
         parent::__construct(
             $acmHelper,
             $helper,
