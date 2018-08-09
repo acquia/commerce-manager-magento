@@ -111,6 +111,25 @@ class StoreTree extends Tree
     }
 
     /**
+     * Add attributes to the loaded category collection, and allow
+     * plugin methods to add additional extension attributes.
+     *
+     * @param Collection $collection
+     *
+     * @return Collection
+     */
+    public function prepareCollectionAttributes(Collection $collection)
+    {
+        $collection
+            ->addAttributeToSelect('name')
+            ->addAttributeToSelect('is_active')
+            ->addAttributeToSelect('description')
+            ->addAttributeToSelect('include_in_menu');
+
+        return $collection;
+    }
+
+    /**
      * {@inheritDoc}
      */
     protected function getChildren($node, $depth, $currentLevel)
@@ -163,13 +182,11 @@ class StoreTree extends Tree
         $storeId = ($storeId) ?: $this->storeManager->getStore()->getId();
 
         $this->categoryCollection
-            ->addAttributeToSelect('name')
-            ->addAttributeToSelect('is_active')
-            ->addAttributeToSelect('description')
-            ->addAttributeToSelect('include_in_menu')
             ->setLoadProductCount(true)
             ->setProductStoreId($storeId)
             ->setStoreId($storeId);
+
+        $this->prepareCollectionAttributes($this->categoryCollection);
     }
 
     /**
