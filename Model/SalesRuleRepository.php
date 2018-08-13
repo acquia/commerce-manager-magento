@@ -10,6 +10,7 @@
 
 namespace Acquia\CommerceManager\Model;
 
+use Magento\SalesRule\Model\ResourceModel\Coupon\CollectionFactory as CouponCollectionFactory;
 use Acquia\CommerceManager\Api\SalesRuleRepositoryInterface;
 use Acquia\CommerceManager\Model\Converter\ToSalesRuleExtendedDataModel as ToDataModel;
 use Magento\SalesRule\Model\ResourceModel\Rule\CollectionFactory;
@@ -66,6 +67,11 @@ class SalesRuleRepository implements SalesRuleRepositoryInterface
     private $storeManager;
 
     /**
+     * @var \Magento\SalesRule\Model\ResourceModel\Coupon\CollectionFactory
+     */
+    protected $_couponCollectionFactory;
+
+    /**
      * Constructor
      *
      * @param CollectionFactory $ruleCollectionFactory
@@ -75,12 +81,14 @@ class SalesRuleRepository implements SalesRuleRepositoryInterface
      * @param StoreManagerInterface $storeManager
      */
     public function __construct(
+        CouponCollectionFactory $couponCollectionFactory,
         CollectionFactory $ruleCollectionFactory,
         ResourceConnection $resource,
         ToDataModel $toDataModelConverter,
         JoinProcessorInterface $extensionAttributesJoinProcessor,
         StoreManagerInterface $storeManager
     ) {
+        $this->_couponCollectionFactory = $couponCollectionFactory;
         $this->ruleCollectionFactory = $ruleCollectionFactory;
         $this->resource = $resource;
         $this->connection = $resource->getConnection();
@@ -127,11 +135,21 @@ class SalesRuleRepository implements SalesRuleRepositoryInterface
                 (isset($this->discountData[$rid])) ?
                     $this->discountData[$rid] :
                     [];
-            $coupon_code =
-                (!empty($rule->getCouponCode())) ?
-                    $rule->getCouponCode() :
-                    '';
-            $result->setCouponCode($coupon_code);
+            $coupon_codes = [];
+            if ($rule->getCouponCode()){
+                foreach($rule->getCoupons() as $coupon){
+                    $coupon_codes[]=$coupon->getCode();
+                }
+            } else if ($rule->getUseAutoGeneration() > 0) {
+                $couponCollection = $this->_couponCollectionFactory->create();
+                $couponCollection->addRuleToFilter($rid);
+                $couponCollection->addGeneratedCouponsFilter();
+                foreach($couponCollection->getItems() as $coupon){
+                    $coupon_codes[] = $coupon->getCode();
+                }
+            }
+
+            $result->setCouponCode($coupon_codes);
             $result->setProductDiscounts($discounts);
             $results[] = $result;
         }

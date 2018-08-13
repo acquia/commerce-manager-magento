@@ -48,7 +48,7 @@ class ExtendedSalesRule extends Rule implements \Acquia\CommerceManager\Api\Data
     /**
      * {@inheritDoc}
      */
-    public function setCouponCode(String $coupon_code) {
+    public function setCouponCode(Array $coupon_code) {
         return ($this->setData(self::KEY_COUPON_CODE, $coupon_code));
     }
 }
