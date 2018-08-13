@@ -375,12 +375,15 @@ class SalesRuleBuilder
         $prodCond = [];
 
         foreach ($conditions as $cid => $condition) {
-            if ($condition instanceof CombineCondition) {
+          // Get attribute code.
+          $attribute_code = $condition->getData('attribute');
+          if ($condition instanceof CombineCondition) {
                 $prodCond = array_merge(
                     $prodCond,
                     $this->locateProductConditions($condition->getConditions())
                 );
-            } elseif ($condition instanceof ProductCondition) {
+            } elseif ($condition instanceof ProductCondition
+                && strpos($attribute_code, 'quote_item_') !== 0) {
                 $prodCond[] = $condition;
             }
         }
