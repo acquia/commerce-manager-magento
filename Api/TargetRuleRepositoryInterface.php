@@ -10,8 +10,6 @@
 
 namespace Acquia\CommerceManager\Api;
 
-use Acquia\CommerceManager\Api\Data\TargetRuleProductsInterface;
-
 /**
  * TargetRuleRepositoryInterface
  *
@@ -22,17 +20,17 @@ use Acquia\CommerceManager\Api\Data\TargetRuleProductsInterface;
 interface TargetRuleRepositoryInterface
 {
     /**
-     * getProductsByType
+     * getRelatedProductsByType
      *
      * Get a list of related products by target rule type for
      * a specific product SKU.
      *
      * @param string $sku Product SKU
-     * @param string $type Link Type: ['related', 'upsell', 'crosssell', 'all']
+     * @param string $type Link Type: ['related', 'upsell', 'crosssell', 'extension', 'all']
      *
      * @return \Acquia\CommerceManager\Api\Data\TargetRuleProductsInterface $products
      */
-    public function getProductsByType($sku, $type);
+    public function getRelatedProductsByType($sku, $type);
 
     /**
      * getTargetRulesEnabled

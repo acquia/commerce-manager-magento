@@ -139,7 +139,7 @@
     </route>
 
     <route url="/V1/products/:sku/links_rule/:type" method="GET">
-        <service class="Acquia\CommerceManager\Api\TargetRuleRepositoryInterface" method="getProductsByType"/>
+        <service class="Acquia\CommerceManager\Api\TargetRuleRepositoryInterface" method="getRelatedProductsByType"/>
         <resources>
             <resource ref="Magento_Catalog::products"/>
         </resources>
