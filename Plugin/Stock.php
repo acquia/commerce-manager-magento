@@ -160,6 +160,21 @@ class Stock
     public function aroundApplyIndexTableToStockTable(StockUpdateIdx $idx, callable $original, $stockId) {
         $this->logger->info('Inside afterApplyIndexTableToStockTable', ['stock_id' => $stockId]);
 
+        // Load all products data with stock.
+        $select = $this->connection->select()->from(
+            $this->resource->getTableName('cataloginventory_stock_item'),
+            ['product_id', 'website_id', 'qty']
+        );
+
+        $select->where('stock_id IN (?)', $stockId);
+
+        $productsExisting = $this->connection->fetchAll($select);
+
+        $productsExistingData = [];
+        foreach ($productsExisting as $row) {
+            $productsExistingData[$row['product_id']] = $row['qty'];
+        }
+
         // Execute the original method and remember the result.
         $original($stockId);
 
@@ -178,6 +193,11 @@ class Stock
         }
 
         foreach ($products as $row) {
+            // Don't send if old and new quantity are same.
+            if (isset($productsExistingData[$row['product_id']]) && $productsExistingData[$row['product_id']] == $row['qty']) {
+                continue;
+            }
+
             $data = [
                 'id' => $row['product_id'],
                 'website_ids' => [$row['website_id']],
