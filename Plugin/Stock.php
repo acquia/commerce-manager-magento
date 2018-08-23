@@ -180,7 +180,7 @@ class Stock
         foreach ($products as $row) {
             $data = [
                 'id' => $row['product_id'],
-                'website_ids' => $row['website_id'],
+                'website_ids' => [$row['website_id']],
                 'qty' => $row['qty'],
             ];
 

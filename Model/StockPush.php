@@ -90,10 +90,13 @@ class StockPush
             return;
         }
 
-        if (!isset($data['website_ids']) || !is_array($data['website_ids'])) {
+        if (!isset($data['website_ids'])) {
             // We will use default scope, for which we use NULL here.
             // So it goes inside the loop once.
             $data['website_ids'] = [null];
+        }
+        elseif (!is_array($data['website_ids'])) {
+            $data['website_ids'] = [$data['website_ids']];
         }
 
         foreach ($data['website_ids'] as $websiteId) {
