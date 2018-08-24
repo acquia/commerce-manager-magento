@@ -92,8 +92,14 @@ class TargetRuleRepository implements TargetRuleRepositoryInterface
     public $relatedProducts;
 
     /**
+     * @var $objectManager \Magento\Framework\App\ObjectManager
+     */
+    private $objectManager;
+
+    /**
      * Constructor
      *
+     * @param ObjectManager $objectManager
      * @param TargetRuleProductsFactory $targetRuleProductsFactory
      * @param ModuleListInterface $moduleList
      * @param ProductRepositoryInterface $productRepository
@@ -101,19 +107,25 @@ class TargetRuleRepository implements TargetRuleRepositoryInterface
      * @param Visibility $visibility
      */
     public function __construct(
+        // Every good boy knows using the ObjectManager is sub-optimal.
+        // Remember it is just a fudge to access EE classes without
+        // The need for a separate EE module
+        // We inject it here so that we can mock it for testing.
+        ObjectManager $objectManager,
+        // As you were:
         TargetRuleProductsFactory $targetRuleProductsFactory,
         ModuleListInterface $moduleList,
         ProductRepositoryInterface $productRepository,
         CollectionFactory $productCollectionFactory,
         Visibility $visibility
     ) {
+        $this->objectManager = $objectManager;
         $this->targetRuleProductsFactory = $targetRuleProductsFactory;
         $this->moduleList = $moduleList;
         $this->productRepository = $productRepository;
         $this->productCollectionFactory = $productCollectionFactory;
         $this->visibility = $visibility;
     }
-
 
     /**
      * getProductsByType
@@ -177,47 +189,44 @@ class TargetRuleRepository implements TargetRuleRepositoryInterface
         $this->relatedProducts->setUpsell([]);
         $this->relatedProducts->setRelated([]);
 
-        if (!$this->targetModuleEnabled()) {
-            return $this->relatedProducts;
-        }
+        if ($this->targetModuleEnabled()) {
+            $ruleClass = $this->getTargetRuleClass();
 
-        $ruleClass = $this->getTargetRuleClass();
+            $types = [
+                $this->relatedProducts::CROSS_SELL => $ruleClass::CROSS_SELLS,
+                $this->relatedProducts::UP_SELL => $ruleClass::UP_SELLS,
+                $this->relatedProducts::RELATED => $ruleClass::RELATED_PRODUCTS,
+            ];
 
-        $types = [
-            $this->relatedProducts::CROSS_SELL => $ruleClass::CROSS_SELLS,
-            $this->relatedProducts::UP_SELL => $ruleClass::UP_SELLS,
-            $this->relatedProducts::RELATED => $ruleClass::RELATED_PRODUCTS,
-        ];
-
-        // Only fetch relation types if we recognize the type.
-        if (isset($types[$type]) || ($type == self::ALL_TYPES)) {
-            $getTypes = [$type];
-            if ($type === self::ALL_TYPES)
-            {
-                $getTypes = array_keys($types);
-            }
-
-            $product = $this->productRepository->get($sku);
-
-            foreach ($getTypes as $typeKey) {
-                $products = $this->getRuleProducts($types[$typeKey], $product);
-                $typeProducts = [];
-                foreach ($products as $typeProduct) {
-                    $typeProducts[] = $typeProduct->getSku();
+            // Only fetch relation types if we recognize the type.
+            if (isset($types[$type]) || ($type == self::ALL_TYPES)) {
+                $getTypes = [$type];
+                if ($type === self::ALL_TYPES) {
+                    $getTypes = array_keys($types);
                 }
-                switch ($typeKey) {
-                    case $this->relatedProducts::CROSS_SELL:
-                        $this->relatedProducts->setCrosssell($typeProducts);
-                        break;
-                    case $this->relatedProducts::UP_SELL:
-                        $this->relatedProducts->setUpsell($typeProducts);
-                        break;
-                    case $this->relatedProducts::RELATED;
-                        $this->relatedProducts->setRelated($typeProducts);
-                        break;
-                    default:
+
+                $product = $this->productRepository->get($sku);
+
+                foreach ($getTypes as $typeKey) {
+                    $products = $this->getRuleProducts($types[$typeKey], $product);
+                    $typeProducts = [];
+                    foreach ($products as $typeProduct) {
+                        $typeProducts[] = $typeProduct->getSku();
+                    }
+                    switch ($typeKey) {
+                        case $this->relatedProducts::CROSS_SELL:
+                            $this->relatedProducts->setCrosssell($typeProducts);
+                            break;
+                        case $this->relatedProducts::UP_SELL:
+                            $this->relatedProducts->setUpsell($typeProducts);
+                            break;
+                        case $this->relatedProducts::RELATED;
+                            $this->relatedProducts->setRelated($typeProducts);
+                            break;
+                        default:
+                    }
+                    $this->relatedProducts[$typeKey] = $typeProducts;
                 }
-                $this->relatedProducts[$typeKey] = $typeProducts;
             }
         }
 
@@ -285,7 +294,7 @@ class TargetRuleRepository implements TargetRuleRepositoryInterface
     private function getTargetRuleClass()
     {
         if (!$this->targetRuleClass) {
-            $this->targetRuleClass = ObjectManager::getInstance()->get(
+            $this->targetRuleClass = $this->objectManager->get(
                 \Magento\TargetRule\Model\Rule::class
             );
         }
@@ -303,7 +312,7 @@ class TargetRuleRepository implements TargetRuleRepositoryInterface
     private function getTargetRuleData()
     {
         if (!$this->targetRuleData) {
-            $this->targetRuleData = ObjectManager::getInstance()->get(
+            $this->targetRuleData = $this->objectManager->get(
                 \Magento\TargetRule\Helper\Data::class
             );
         }
@@ -321,7 +330,7 @@ class TargetRuleRepository implements TargetRuleRepositoryInterface
     public function getTargetRuleIndex()
     {
         if (!$this->targetRuleIndex) {
-            $this->targetRuleIndex = ObjectManager::getInstance()->get(
+            $this->targetRuleIndex = $this->objectManager->get(
                 \Magento\TargetRule\Model\IndexFactory::class
             )->create();
         }

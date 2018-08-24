@@ -5,6 +5,9 @@ namespace Acquia\CommerceManager;
 use Magento\Framework\Component\ComponentRegistrar;
 use Magento\Framework\Module\ModuleList;
 use Magento\TestFramework\ObjectManager;
+use Magento\Framework\App\Filesystem\DirectoryList;
+use Magento\Framework\App\DeploymentConfig\Reader as DeploymentConfigReader;
+use Magento\Framework\App\DeploymentConfig;
 
 class CommerceManagerTest extends \PHPUnit\Framework\TestCase
 {
@@ -17,7 +20,12 @@ class CommerceManagerTest extends \PHPUnit\Framework\TestCase
 
     protected function setUp()
     {
-        $this->objectManager = ObjectManager::getInstance();
+        // Old way:
+        //$this->objectManager = ObjectManager::getInstance();
+
+        // New way
+        /** @var $objectManager \Magento\TestFramework\ObjectManager */
+        $this->objectManager = \Magento\TestFramework\Helper\Bootstrap::getObjectManager();
     }
 
     public function testTheModuleIsRegistered()

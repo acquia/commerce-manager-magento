@@ -12,7 +12,7 @@ class ApiVersionTest extends \PHPUnit\Framework\TestCase
         $this->apiVersion = new ApiVersion();
     }
 
-    public function testAlwaysPass()
+    public function OFFtestAlwaysPass()
     {
         $this->assertTrue(true);
     }

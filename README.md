@@ -51,6 +51,12 @@ To run the unit tests install this extension into your Magento project then run
 ```
 vendor/bin/phpunit -c dev/tests/unit/phpunit.xml.dist vendor/acquia/commerce-manager-magento/Test/Unit
 ```
+or use
+```
+vendor/bin/phpunit -c dev/tests/unit/phpunit.xml.dist app/code/Acquia/CommerceManager/Test/Unit
+```
+if you installed the module under the `app/code/` directory.
+Run those commands from the Magento install root.
 
 ## Copyright and license
 
