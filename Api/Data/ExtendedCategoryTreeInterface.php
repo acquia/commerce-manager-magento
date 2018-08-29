@@ -47,4 +47,11 @@ interface ExtendedCategoryTreeInterface extends CategoryTreeInterface
      * @return \Acquia\CommerceManager\Api\Data\ExtendedCategoryTreeInterface[]
      */
     public function getChildrenData();
+
+    /**
+     * Retrieve existing extension attributes
+     *
+     * @return \Magento\Catalog\Api\Data\CategoryExtensionInterface|array
+     */
+    public function getExtensionAttributes();
 }

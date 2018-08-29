@@ -13,6 +13,7 @@ namespace Acquia\CommerceManager\Model\Category;
 use Acquia\CommerceManager\Model\ResourceModel\Category\StoreTree as TreeResource;
 use Acquia\CommerceManager\Api\Data\ExtendedCategoryTreeInterfaceFactory as ExtendedTreeFactory;
 use Magento\Catalog\Api\Data\CategoryTreeInterfaceFactory;
+use Magento\Catalog\Api\Data\CategoryExtensionFactory;
 use Magento\Catalog\Model\Category\Tree;
 use Magento\Catalog\Model\ResourceModel\Category\Collection;
 use Magento\Catalog\Model\ResourceModel\Category\Collection\Factory;
@@ -30,6 +31,12 @@ class StoreTree extends Tree
      * @var Factory $categoryCollectionFactory
      */
     protected $categoryCollectionFactory;
+
+    /**
+     * Magento Category Extension Attributes Factory
+     * @var CategoryExtensionFactory $categoryExtensionFactory
+     */
+    protected $categoryExtensionFactory;
 
     /**
      * Extended Category Tree Interface Factory
@@ -52,6 +59,7 @@ class StoreTree extends Tree
      * @param CategoryTreeInterfaceFactory $treeFactory
      * @param Factory $categoryCollectionFactory
      * @param ExtendedTreeFactory $extTreeFactory
+     * @param CategoryExtensionFactory $categoryExtensionFactory
      */
     public function __construct(
         TreeResource $categoryTree,
@@ -59,10 +67,12 @@ class StoreTree extends Tree
         Collection $categoryCollection,
         CategoryTreeInterfaceFactory $treeFactory,
         Factory $categoryCollectionFactory,
-        ExtendedTreeFactory $extTreeFactory
+        ExtendedTreeFactory $extTreeFactory,
+        CategoryExtensionFactory $categoryExtensionFactory
     ) {
         $this->categoryCollectionFactory = $categoryCollectionFactory;
         $this->extTreeFactory = $extTreeFactory;
+        $this->categoryExtensionFactory = $categoryExtensionFactory;
 
         return (parent::__construct(
             $categoryTree,
@@ -106,6 +116,10 @@ class StoreTree extends Tree
             ->setDescription($node->getDescription())
             ->setIncludeInMenu($node->getIncludeInMenu())
             ->setChildrenData($children);
+
+        if ($tree->getExtensionAttributes() === null) {
+            $tree->setExtensionAttributes($this->categoryExtensionFactory->create());
+        }
 
         return $tree;
     }
