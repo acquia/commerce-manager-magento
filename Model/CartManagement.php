@@ -305,6 +305,22 @@ class CartManagement implements ApiInterface
     }
 
     /**
+     * getSkusInQuote
+     *
+     * @param \Magento\Quote\Api\Data\CartInterface $quote
+     * @return string[]
+     */
+    protected function getSkusInQuote(\Magento\Quote\Api\Data\CartInterface $quote)
+    {
+        $items = $quote->getItems();
+        $itemsBySku = [];
+        foreach ($items as $item) {
+            $itemsBySku[$item->getSku()] = $item->getSku();
+        }
+        return $itemsBySku;
+    }
+
+    /**
      * {@inheritDoc}
      *
      * @param int $cartId
@@ -330,7 +346,9 @@ class CartManagement implements ApiInterface
         $updateTotals = false;
         $itemsRemovedByPromotions = [];
 
-        $itemsInQuote = $this->getItemsInQuote($cartId);
+        $quote = $this->quoteRepository->getActive($cartId);
+
+        $itemsInQuote = $this->getSkusInQuote($quote);
 
         // We remove the coupon first if doesn't match what is
         // there in new request.
@@ -343,11 +361,10 @@ class CartManagement implements ApiInterface
             // For promotions like free gift items, they are removed
             // from cart and we end up into error as our request
             // still contains them.
-            $itemsInQuoteAfterCouponRemoval = $this->getItemsInQuote($cartId);
+            $quote = $this->quoteRepository->getActive($cartId);
+            $itemsInQuoteAfterCouponRemoval = $this->getSkusInQuote($quote);
             $itemsRemovedByPromotions = array_diff_key($itemsInQuote, $itemsInQuoteAfterCouponRemoval);
         }
-
-        $quote = $this->quoteRepository->getActive($cartId);
 
         $this->eventManager->dispatch(
             'acqcomm_cart_update_before',
