@@ -249,6 +249,7 @@ class Acm extends AbstractHelper
         $attributes['small_image'] = $this->product->getSmallImage();
         $attributes['base_image'] = $this->product->getBaseImage();
         $attributes['swatch_image'] = $this->product->getSwatchImage();
+        $attributes['thumbnail'] = $this->product->getThumbnail();
 
         foreach ($mediaEntries as $mediaEntry) {
             $filterEntry = [];
