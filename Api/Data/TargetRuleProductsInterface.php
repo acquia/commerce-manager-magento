@@ -111,7 +111,7 @@ interface TargetRuleProductsInterface
     /**
      * Retrieve existing extension attributes object or create a new one.
      *
-     * @return ExtensionInterface|null
+     * @return \Acquia\CommerceManager\Api\Data\TargetRuleProductsExtensionInterface|null
      */
     public function getExtensionAttributes();
 
