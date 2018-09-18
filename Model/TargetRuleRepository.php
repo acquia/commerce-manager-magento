@@ -18,6 +18,7 @@ use Magento\Catalog\Model\Product\Visibility;
 use Magento\Catalog\Model\ResourceModel\Product\Collection;
 use Magento\Catalog\Model\ResourceModel\Product\CollectionFactory;
 use Magento\Framework\App\ObjectManager;
+use Magento\Framework\ObjectManagerInterface;
 use Magento\Framework\Module\ModuleListInterface;
 
 /**
@@ -99,7 +100,7 @@ class TargetRuleRepository implements TargetRuleRepositoryInterface
     /**
      * Constructor
      *
-     * @param ObjectManager $objectManager
+     * @param ObjectManagerInterface $objectManager
      * @param TargetRuleProductsFactory $targetRuleProductsFactory
      * @param ModuleListInterface $moduleList
      * @param ProductRepositoryInterface $productRepository
@@ -111,7 +112,7 @@ class TargetRuleRepository implements TargetRuleRepositoryInterface
         // Remember it is just a fudge to access EE classes without
         // The need for a separate EE module
         // We inject it here so that we can mock it for testing.
-        ObjectManager $objectManager,
+        ObjectManagerInterface $objectManager,
         // As you were:
         TargetRuleProductsFactory $targetRuleProductsFactory,
         ModuleListInterface $moduleList,
