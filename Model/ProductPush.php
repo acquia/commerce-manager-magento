@@ -76,48 +76,63 @@ class ProductPush
 
         $productDataByStore = [];
 
+        $logData = [];
+        $logData['pushed'] = [];
+        $logData['start_time'] = microtime();
+
         foreach ($products as $row) {
             if (is_array($row)) {
                 $productId = $row['product_id'];
-                $storeId = $row['store_id'] ? $row['store_id'] : null;
+                $storeIdRequested = $row['store_id'] ? $row['store_id'] : null;
             }
             // Backward compatibility. We need to update this everywhere
             // to push only for specific stores wherever possible.
             else {
                 $productId = $row;
-                $storeId = null;
+                $storeIdRequested = null;
             }
 
             // Force reload, we always want to send fresh data.
-            $product = $this->productRepository->getById($productId, false, $storeId, true);
+            $product = $this->productRepository->getById($productId, false, $storeIdRequested, true);
 
             // Do for only specific store if loaded product doesn't belong to default store.
-            $stores = empty($storeId) ? $product->getStoreIds() : [$storeId];
+            $stores = empty($storeIdRequested) ? $product->getStoreIds() : [$storeIdRequested];
 
             foreach ($stores as $storeId) {
                 if ($storeId == 0) {
                     continue;
                 }
 
-                $this->logger->notice(
-                    sprintf('ProductPush: sending product for store %d.', $storeId),
-                    [ 'sku' => $product->getSku(), 'id' => $product->getId() ]
-                );
-//NEEDS TRY CATCH
+                //NEEDS TRY CATCH
                 // Force reload, we always want to send fresh data.
-                $storeProduct = $this->productRepository->getById(
-                    $product->getId(),
-                    false,
-                    $storeId,
-                    true
-                );
+                // If product push was requested only for one store, we have
+                // loaded that already outside loop. Let's use it as is.
+                $storeProduct = ($storeId === $storeIdRequested)
+                    ? $product
+                    : $this->productRepository->getById(
+                        $product->getId(),
+                        false,
+                        $storeId,
+                        true
+                    );
 
                 if ($storeProduct) {
+                    $logData['pushed'][] = [
+                        'store_id' => $storeId,
+                        'sku' => $storeProduct->getSku(),
+                    ];
+
                     $productDataByStore[$storeId][] = $this->acmHelper->getProductDataForAPI($storeProduct);
                 }
             }
         }
 
+        $logData['before_api_call'] = microtime();
+
         $this->batchHelper->pushMultipleProducts($productDataByStore, 'pushProductBatch');
+
+        $logData['end_time'] = microtime();
+        $logData['pushed'] = json_encode($logData['pushed']);
+        $this->logger->info('ProductPush: pushed products in background.', $logData);
     }
 }
