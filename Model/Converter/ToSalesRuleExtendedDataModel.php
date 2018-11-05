@@ -13,7 +13,6 @@ namespace Acquia\CommerceManager\Model\Converter;
 use Acquia\CommerceManager\Api\Data\ExtendedSalesRuleInterfaceFactory;
 use Magento\SalesRule\Model\Converter\ToDataModel;
 use Magento\SalesRule\Api\Data\RuleExtensionFactory;
-use Magento\Framework\Serialize\Serializer\Json;
 
 /**
  * ToSalesRuleExtendedDataModel
@@ -41,7 +40,6 @@ class ToSalesRuleExtendedDataModel extends ToDataModel
      * @param \Magento\SalesRule\Api\Data\ConditionInterfaceFactory $conditionDataFactory
      * @param \Magento\SalesRule\Api\Data\RuleLabelInterfaceFactory $ruleLabelFactory
      * @param \Magento\Framework\Reflection\DataObjectProcessor $dataObjectProcessor
-     * @param Json|null $serializer
      * @param RuleExtensionFactory|null $extensionFactory
      */
     public function __construct(
@@ -51,7 +49,6 @@ class ToSalesRuleExtendedDataModel extends ToDataModel
         \Magento\SalesRule\Api\Data\ConditionInterfaceFactory $conditionDataFactory,
         \Magento\SalesRule\Api\Data\RuleLabelInterfaceFactory $ruleLabelFactory,
         \Magento\Framework\Reflection\DataObjectProcessor $dataObjectProcessor,
-        Json $serializer = null,
         RuleExtensionFactory $extensionFactory = null
     ) {
         $this->extendedRuleDataFactory = $extendedRuleDataFactory;
@@ -67,7 +64,6 @@ class ToSalesRuleExtendedDataModel extends ToDataModel
             $conditionDataFactory,
             $ruleLabelFactory,
             $dataObjectProcessor,
-            $serializer,
             $extensionFactory
         ));
     }
