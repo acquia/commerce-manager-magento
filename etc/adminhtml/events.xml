@@ -11,7 +11,7 @@
 -->
 
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
-    <event name="model_delete_after">
+    <event name="customer_delete_after">
         <observer name="acquia_connector_customer_delete_after" instance="Acquia\CommerceManager\Observer\CustomerDeleteObserver"/>
     </event>
     <event name="catalog_product_import_bunch_save_after">
