@@ -183,17 +183,6 @@ class Acm extends AbstractHelper
      */
     public function addPricesToRecord()
     {
-        // Get the default store group id.
-        $store_group_id = $this->storeManager->getStore($this->product->getStoreId())->getStoreGroupId();
-        // Get the default store id.
-        $default_store_id = $this->storeManager->getGroup($store_group_id)->getDefaultStoreId();
-        // If store attached with product is not default store view of website,
-        // then no need to attach price info to the product as the price will
-        // be added only (or same) for the default store view of the store.
-        if ($default_store_id != $this->product->getStoreId()) {
-            return;
-        }
-
         $this->record['price'] = (string) $this->product->getPrice();
 
         // Later (Malachy): getPrice should not return empty
