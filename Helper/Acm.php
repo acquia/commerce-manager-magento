@@ -133,9 +133,6 @@ class Acm extends AbstractHelper
      */
     private function _getProductDataForAPI()
     {
-        // 1. Add the stock data to the product object.
-        $this->stockAttributes();
-
         // 2. Build the Magento standard API product data (GET) array.
         $this->record = $this->serviceOutputProcessor->process(
             $this->product,
@@ -143,8 +140,22 @@ class Acm extends AbstractHelper
             'get'
         );
 
+        // Get the default store group id.
+        $store_group_id = $this->storeManager->getStore($this->product->getStoreId())->getStoreGroupId();
+        // Get the default store id.
+        $default_store_id = $this->storeManager->getGroup($store_group_id)->getDefaultStoreId();
+        // If store attached with product is default store of the website,
+        // only then attach stock/price info to the product as the they
+        // will only be added for the default store view.
+        if ($default_store_id == $this->product->getStoreId()) {
+            // Attach price to the record.
+            $this->addPricesToRecord();
+            // Attach the stock info.
+            $scopeId = $this->storeManager->getStore($this->product->getStoreId())->getWebsiteId();
+            $this->record['extension_attributes']['stock_item'] = $this->stockHelper->getStockInfo($this->product->getId(), $scopeId, FALSE);
+        }
+
         // 3. Add the additional ACM attributes into the API data array
-        $this->addPricesToRecord();
         $this->record['store_id'] = (integer) $this->product->getStoreId();
         $this->record['categories'] = $this->product->getCategoryIds();
         $this->record['attribute_set_id'] = (integer) $this->product->getAttributeSetId();
@@ -221,17 +232,6 @@ class Acm extends AbstractHelper
     public function stockAttributes()
     {
         $storeId = $this->product->getStoreId();
-
-        // Get the default store group id.
-        $store_group_id = $this->storeManager->getStore($storeId)->getStoreGroupId();
-        // Get the default store id.
-        $default_store_id = $this->storeManager->getGroup($store_group_id)->getDefaultStoreId();
-        // If store attached with product is not default store view of website,
-        // then no need to attach stock info to the product as the stock will
-        // be added only (or same) for the default store view of the store.
-        if ($default_store_id != $storeId) {
-          return;
-        }
 
         // Adding stock info to the product.
         $scopeId = $this->storeManager->getStore($storeId)->getWebsiteId();
