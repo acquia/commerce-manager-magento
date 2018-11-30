@@ -13,7 +13,9 @@ namespace Acquia\CommerceManager\Observer;
 use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\Event\Observer;
 
+use Magento\Catalog\Api\Data\ProductInterface;
 use Magento\Catalog\Api\ProductRepositoryInterface;
+use Magento\Catalog\Model\Product\Attribute\Source\Status;
 
 use Acquia\CommerceManager\Helper\Acm as AcmHelper;
 use Acquia\CommerceManager\Helper\Data as ClientHelper;
@@ -128,6 +130,24 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
             if (empty($storeProduct)) {
                 continue;
             }
+
+            // If product is saved in the specific store view, we can use the
+            // product object but if product is saved in default store view,
+            // then use product loaded from repository by store id.
+            $status_product = count($stores) == 1 ? $product : $storeProduct;
+            $current_product_status = $status_product->getData(ProductInterface::STATUS);
+            $old_product_status = $status_product->getOrigData(ProductInterface::STATUS);
+            // If product was disabled previously and also disabled now, not need
+            // to push to the ACM.
+            if ($current_product_status == Status::STATUS_DISABLED && $current_product_status == $old_product_status) {
+                $this->logger->info('ProductSaveObserver: not pushing product to ACM as its disabled currently and previously.', [
+                  'sku' => $storeProduct->getSku(),
+                  'id' => $storeProduct->getId(),
+                  'store_id' => $storeId,
+                ]);
+                continue;
+            }
+
 
             $this->logger->debug('ProductSaveObserver: sending product.', [
                 'sku' => $storeProduct->getSku(),
