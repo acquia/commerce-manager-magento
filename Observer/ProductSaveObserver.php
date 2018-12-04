@@ -96,6 +96,13 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
         /** @var \Magento\Catalog\Model\Product $product */
         $product = $observer->getEvent()->getProduct();
 
+        $need_push = FALSE;
+        // If product status is changed.
+        if (!empty($product->getOrigData())
+          && $product->getData(ProductInterface::STATUS) != $product->getOrigData(ProductInterface::STATUS)) {
+            $need_push = TRUE;
+        }
+
         $this->logger->debug('ProductSaveObserver: saved product.', [
             'sku' => $product->getSku(),
             'id' => $product->getId(),
@@ -131,23 +138,14 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
                 continue;
             }
 
-            // If product is saved in the specific store view, we can use the
-            // product object but if product is saved in default store view,
-            // then use product loaded from repository by store id.
-            $status_product = count($stores) == 1 ? $product : $storeProduct;
-            $current_product_status = $status_product->getData(ProductInterface::STATUS);
-            $old_product_status = $status_product->getOrigData(ProductInterface::STATUS);
-            // If product was disabled previously and also disabled now, not need
-            // to push to the ACM.
-            if ($current_product_status == Status::STATUS_DISABLED && $current_product_status == $old_product_status) {
-                $this->logger->info('ProductSaveObserver: not pushing product to ACM as its disabled currently and previously.', [
+            // Don't push if product status not changed and product is disabled.
+            if (!$need_push && $storeProduct->getData(ProductInterface::STATUS) == Status::STATUS_DISABLED) {
+                $this->logger->info('ProductSaveObserver: not pushing disabled product to ACM.', [
                   'sku' => $storeProduct->getSku(),
-                  'id' => $storeProduct->getId(),
                   'store_id' => $storeId,
                 ]);
                 continue;
             }
-
 
             $this->logger->debug('ProductSaveObserver: sending product.', [
                 'sku' => $storeProduct->getSku(),
