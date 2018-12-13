@@ -96,13 +96,6 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
         /** @var \Magento\Catalog\Model\Product $product */
         $product = $observer->getEvent()->getProduct();
 
-        $need_push = FALSE;
-        // If product status is changed.
-        if (!empty($product->getOrigData())
-          && $product->getData(ProductInterface::STATUS) != $product->getOrigData(ProductInterface::STATUS)) {
-            $need_push = TRUE;
-        }
-
         $this->logger->debug('ProductSaveObserver: saved product.', [
             'sku' => $product->getSku(),
             'id' => $product->getId(),
@@ -138,11 +131,28 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
                 continue;
             }
 
-            // Don't push if product status not changed and product is disabled.
-            if (!$need_push && $storeProduct->getData(ProductInterface::STATUS) == Status::STATUS_DISABLED) {
+            // Avoid pushing disabled products when not needed.
+            $do_not_push_disabled = FALSE;
+            if (empty($product->getOrigData())) {
+                // Case of a creation.
+                $do_not_push_disabled = $storeProduct->getData(ProductInterface::STATUS) == Status::STATUS_DISABLED;
+            }
+            else {
+                // Case of an update.
+                if ($product->getStoreId() == 0) {
+                    // Case of an update on default store view.
+                    $do_not_push_disabled = $storeProduct->getData(ProductInterface::STATUS) == Status::STATUS_DISABLED && !($product->getOrigData(ProductInterface::STATUS) == Status::STATUS_ENABLED && $product->getData(ProductInterface::STATUS) == Status::STATUS_DISABLED);
+                }
+                else {
+                    // Case of an update on specific store.
+                    $do_not_push_disabled = $product->getOrigData(ProductInterface::STATUS) == Status::STATUS_DISABLED && $product->getData(ProductInterface::STATUS) == Status::STATUS_DISABLED;
+                }
+            }
+
+            if ($do_not_push_disabled) {
                 $this->logger->info('ProductSaveObserver: not pushing disabled product to ACM.', [
-                  'sku' => $storeProduct->getSku(),
-                  'store_id' => $storeId,
+                    'sku' => $storeProduct->getSku(),
+                    'store_id' => $storeId,
                 ]);
                 continue;
             }
