@@ -155,9 +155,9 @@ class ProductBatch extends AbstractHelper
             if ($this->getMessageQueueEnabled()) {
                 // Object Manager's get() is type-preference aware,
                 // so we can request a class using its interface
-                $this->publisher = \Magento\Framework\App\ObjectManager::getInstance()->get(
+                $this->publisher = \Magento\Framework\App\ObjectManager::getInstance()->create(
                     \Magento\Framework\MessageQueue\PublisherInterface::class
-                )->create();
+                );
             } else {
                 $this->publisher = null;
                 // Or perhaps use a class that mimics the queue using Magento CRON
