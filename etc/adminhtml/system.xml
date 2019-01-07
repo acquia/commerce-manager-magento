@@ -12,9 +12,12 @@
 
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Config:etc/system_file.xsd">
     <system>
-        <section id="webapi">
+        <section id="acquia_api" translate="label" type="text" sortOrder="105" showInDefault="1" showInWebsite="1" showInStore="1">
+            <label>Acquia Commerce API</label>
+            <tab>service</tab>
+            <resource>Magento_Webapi::config_webapi</resource>
             <group id="acquia_commerce" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
-                <label>Acquia Commerce API Settings</label>
+                <label>API Settings</label>
                 <field id="connector_url" translate="label comment" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Acquia Commerce Connector URL</label>
                     <comment>Base URL of Acquia Commerce Connector Instance. For example "https://commerceconnector.acquia.com". Do not include the api version.</comment>
@@ -40,7 +43,7 @@
                 </field>
             </group>
             <group id="acquia_commerce_security" translate="label" type="text" sortOrder="11" showInDefault="1" showInWebsite="1" showInStore="1">
-                <label>Acquia Commerce API Security Settings</label>
+                <label>API Security Settings</label>
                 <field id="ac_hmac_id" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>HMAC Key ID</label>
                 </field>
@@ -49,7 +52,7 @@
                 </field>
             </group>
             <group id="acquia_commerce_settings" translate="label" type="text" sortOrder="12" showInDefault="1" showInWebsite="0" showInStore="0">
-                <label>Acquia Commerce API General Settings</label>
+                <label>API General Settings</label>
                 <field id="product_push_batch_size" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
                     <label>Product Push - Batch Size</label>
                     <frontend_class>validate-number</frontend_class>
