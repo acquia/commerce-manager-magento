@@ -76,7 +76,7 @@ class ProductImportBunchSaveObserver extends ConnectorObserver implements Observ
             return;
         }
 
-        $batchSize = (int) $this->acmHelper->getProductPushBatchSize();
+        $batchSize = (int) $this->acmHelper->getProductQueueBatchSize();
 
         $batch = [];
 
