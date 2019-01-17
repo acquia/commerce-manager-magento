@@ -76,55 +76,100 @@ class ProductImportBunchSaveObserver extends ConnectorObserver implements Observ
             return;
         }
 
-        $batchSize = (int) $this->acmHelper->getProductPushBatchSize();
+        $products = $observer->getEvent()->getBunch();
+        if (empty($products) || empty($products[0])) {
+            $this->logger->warning('ProductImportBunchSaveObserver: Invoked with empty products data in observer event.');
+            return;
+        }
+
+        if (!isset($products[0][ImportProduct::COL_SKU])) {
+            $this->logger->warning('ProductImportBunchSaveObserver: Invoked with products data without sku in data, ignoring.');
+            return;
+        }
+
+        $skus = array_column($products, ImportProduct::COL_SKU);
+        $store_ids = $this->acmHelper->getAllActiveStoreIds();
+        $statuses = $this->acmHelper->getProductStatusForStores($skus, $store_ids);
+
+        // When status column is set, we push to all stores of particular website if store/website set.
+        // If store/website is not set, we will simply push to all the stores (even if disabled).
+        $status_column_set = isset($products[0]['status']);
 
         $batch = [];
+        $logData = [];
+        foreach ($products as $productRow) {
+            $sku = $productRow[ImportProduct::COL_SKU];
+            $productStoresToPush = [];
 
-        // Get bunch products.
-        if ($products = $observer->getEvent()->getBunch()) {
-            $logData = [];
+            // If store code is set in import, we will import only for
+            // that specific store.
+            if (isset($productRow[ImportProduct::COL_STORE_VIEW_CODE])) {
+                $store_code = $productRow[ImportProduct::COL_STORE_VIEW_CODE];
 
-            foreach ($products as $productRow) {
-                $sku = $productRow[ImportProduct::COL_SKU];
-
-                // Process only if there is SKU available in imported data.
-                if (empty($sku)) {
-                    continue;
+                // Push to all stores of a site when updating status.
+                if ($status_column_set) {
+                    $productStoresToPush = $this->acmHelper->getAllStoresInWebsiteForStore($store_code);
                 }
+                else {
+                    $productStoresToPush = [$store_ids[$store_code]];
+                }
+            }
+            // If website_code column is set in import, we will get only
+            // one website id here, we will import for only the stores
+            // available in that website.
+            elseif (isset($productRow[ImportProduct::COL_WEBSITE])) {
+                $productStoresToPush = $this->acmHelper->getAllStoresForWebsite($productRow[ImportProduct::COL_WEBSITE]);
+            }
+            // If _product_websites column is set, we need to get stores
+            // for all the websites as it is multiple value field.
+            elseif (isset($productRow[ImportProduct::COL_PRODUCT_WEBSITES])) {
+                $separator = $observer->getData('adapter')->getMultipleValueSeparator();
+                $websiteCodes = explode($separator, $productRow[ImportProduct::COL_PRODUCT_WEBSITES]);
+                foreach ($websiteCodes as $websiteCode) {
+                    $productStoresToPush = array_merge($productStoresToPush, $this->acmHelper->getAllStoresForWebsite($websiteCode));
+                }
+            }
 
-                // @TODO: Implement checks for store/website values and
-                // use them if available. It is possible to import without
-                // store/website code. If available, it can reduce number
-                // of Product Pushes. See below mentioned class for example.
-                // \Magento\CatalogUrlRewrite\Observer\AfterImportDataObserver
-                // $store_code = $productRow[ImportProduct::COL_STORE_VIEW_CODE];
-                // $website_code = $productRow[ImportProduct::COL_WEBSITE];
-                $batch[$sku] = [
+            // Remove disabled stores if status column not set.
+            if (!$status_column_set) {
+                foreach ($productStoresToPush as $index => $storeId) {
+                    if ($statuses[$sku][$storeId] == Status::STATUS_DISABLED) {
+                        unset($productStoresToPush[$index]);
+                    }
+                }
+            }
+
+            // Skip the products completely that are not enabled in any stores.
+            if (empty($productStoresToPush)) {
+                continue;
+            }
+
+            foreach ($productStoresToPush as $storeId) {
+                $batch[$storeId][$sku] = [
                     'sku' => $sku,
-                    'store_id' => NULL,
+                    'store_id' => $storeId,
                 ];
-
-                $logData[$sku] = $sku;
-
-                // Push product ids in queue in batch.
-                // Playing safe with >= instead of ==.
-                if (count($batch) >= $batchSize) {
-                    $this->productBatchHelper->addBatchToQueue($batch);
-
-                    // Reset batch.
-                    $batch = [];
-                }
             }
 
-            // Push product ids in last batch (which might be lesser in count
-            // than batch size.
-            if (!empty($batch)) {
-                $this->productBatchHelper->addBatchToQueue($batch);
-            }
-
-            $this->logger->info('ProductImportBunchSaveObserver: Added products to queue for pushing.', [
-                'skus' => implode(',', $logData),
-            ]);
+            $logData[$sku] = $sku . ' (Store ids: ' . implode(',', $productStoresToPush) . ')';
         }
+
+        // Simply return if nothing to queue.
+        if (empty($batch)) {
+            return;
+        }
+
+        $batchSize = $this->productBatchHelper->getProductQueueBatchSize();
+
+        // Add batch to queue, create chunks per store id based on batch size.
+        foreach ($batch as $storeBatch) {
+            foreach (array_chunk($storeBatch, $batchSize, true) as $chunk) {
+                $this->productBatchHelper->addBatchToQueue($chunk);
+            }
+        }
+
+        $this->logger->info('ProductImportBunchSaveObserver: Added products to queue for pushing.', [
+            'skus' => implode(', ', $logData),
+        ]);
     }
 }
