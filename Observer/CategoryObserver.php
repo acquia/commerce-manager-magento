@@ -189,6 +189,8 @@ abstract class CategoryObserver extends ConnectorObserver
         else {
             $this->sendCatTreeData($category);
         }
+
+        $this->messageManager->addNotice(__('Your category update has been pushed to ACM for every impacted stores. These updates are going to be queued on ACM.'));
     }
 
     /**
@@ -234,8 +236,6 @@ abstract class CategoryObserver extends ConnectorObserver
         };
 
         $this->tryRequest($doReq, $this->getLogName(), $storeId);
-
-        $this->messageManager->addNotice(__('Your category update has been pushed to ACM for every impacted stores. These updates are going to be queued on ACM.'));
     }
 
     /**
