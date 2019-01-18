@@ -51,7 +51,6 @@ class ProductImportBunchSaveObserver extends ConnectorObserver implements Observ
      * @param BatchHelper $productBatchHelper
      * @param ClientHelper $clientHelper
      * @param MessageManager $messageManager
-     * @param MessageManager $messageManager
      */
     public function __construct(
         AcmHelper $acmHelper,
