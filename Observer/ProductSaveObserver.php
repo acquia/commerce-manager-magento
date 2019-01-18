@@ -122,7 +122,7 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
             }
             elseif ($product->getData('status') != $product->getOrigData('status')) {
                 // Push to all stores of the website on status change.
-                $stores = $this->acmHelper->getAllStoresOfWebsiteByStoreId($product->getStoreId());
+                $stores = $this->storeManager->getStore($product->getStoreId())->getWebsite()->getStoreIds();
                 $attr_changed = 'status';
             }
 
