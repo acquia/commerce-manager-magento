@@ -67,7 +67,7 @@ class UpdateAttributes
             $productIds = array_unique($productIds);
 
             // Get batch size from config.
-            $batchSize = $this->batchHelper->getProductPushBatchSize();
+            $batchSize = $this->batchHelper->getProductQueueBatchSize();
 
             // Do product push in batches.
             foreach (array_chunk($productIds, $batchSize, TRUE) as $chunk) {

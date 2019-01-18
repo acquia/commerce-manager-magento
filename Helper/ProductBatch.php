@@ -280,6 +280,23 @@ class ProductBatch extends AbstractHelper
     }
 
     /**
+     * Get batch size from config to use for queue.
+     *
+     * @return mixed
+     */
+    public function getProductQueueBatchSize()
+    {
+        $path = 'webapi/acquia_commerce_settings/product_queue_batch_size';
+
+        $batchSize = $this->scopeConfig->getValue(
+            $path,
+            ScopeConfigInterface::SCOPE_TYPE_DEFAULT
+        );
+
+        return $batchSize;
+    }
+
+    /**
      * Check if we need to push product on attribute changes.
      *
      * @return bool

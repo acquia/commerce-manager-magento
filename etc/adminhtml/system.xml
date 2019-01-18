@@ -54,6 +54,10 @@
                     <label>Product Push - Batch Size</label>
                     <frontend_class>validate-number</frontend_class>
                 </field>
+                <field id="product_queue_batch_size" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Product Queue - Batch Size</label>
+                    <frontend_class>validate-number</frontend_class>
+                </field>
                 <field id="push_stock" translate="label" type="select" sortOrder="20" showInDefault="1" showInWebsite="0" showInStore="0">
                     <label>Push Stock changes</label>
                     <comment>Stock mode - pull / push</comment>
