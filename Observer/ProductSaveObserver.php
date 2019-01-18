@@ -108,6 +108,34 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
         // product is assigned.
         $stores = $product->getStoreId() == 0 ? $product->getStoreIds() : [$product->getStoreId()];
 
+        // In case of specific store update there may be larger scope
+        // fields updated.
+        if ($product->getStoreId() != 0 && !empty($product->getOrigData())) {
+            $attr_changed = NULL;
+            // Push to all stores on category change.
+            if (
+              !empty(array_diff($product->getData('category_ids'), $product->getOrigData('category_ids')))
+              || !empty(array_diff($product->getOrigData('category_ids'), $product->getData('category_ids')))
+            ) {
+                $stores = $product->getStoreIds();
+                $attr_changed = 'category';
+            }
+            elseif ($product->getData('status') != $product->getOrigData('status')) {
+                // Push to all stores of the website on status change.
+                $stores = $this->acmHelper->getAllStoresOfWebsiteByStoreId($product->getStoreId());
+                $attr_changed = 'status';
+            }
+
+            // If any change, only then log.
+            if ($attr_changed) {
+                $this->logger->info('ProductSaveObserver: pushing products to more stores as there is change in attribute.', [
+                    'sku' => $product->getSku(),
+                    'stores' => implode(',', $stores),
+                    'attr_code' => $attr_changed,
+                ]);
+            }
+        }
+
         foreach ($stores as $storeId) {
             // Never send the admin store.
             if ($storeId == 0) {
