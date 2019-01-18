@@ -101,7 +101,8 @@ class UpdateAttributes
                     // If any attribute is at website scope level then we need to
                     // push for all stores of the website.
                     if ($attribute->isScopeWebsite()) {
-                        $storeIds = $this->getAllStoresOfWebsiteByStoreId($storeId);
+                        // Get all stores belong same website as current store.
+                        $storeIds = $this->storeManager->getStore($storeId)->getWebsite()->getStoreIds();
                         $this->logger->debug('Updated attribute is website level so pushing only for all stores of website.', [
                             'attribute_code' => $attr_code,
                             'store_ids' => implode(',', $storeIds),
@@ -145,35 +146,6 @@ class UpdateAttributes
         }
 
         return $result;
-    }
-
-    /**
-     * Get the store id of all store belong to same website as given store.
-     *
-     * @param int $store_id
-     *   Store id.
-     *
-     * @return array
-     *   Array of store ids.
-     */
-    private function getAllStoresOfWebsiteByStoreId(int $store_id) {
-        static $website_store_ids = [];
-
-        if (!isset($website_store_ids[$store_id])) {
-            $website_store_ids[$store_id] = [];
-
-            /* @var \Magento\Store\Api\Data\StoreInterface $store_object */
-            $store_object = $this->storeManager->getStore($store_id);
-            /* @var \Magento\Store\Api\Data\StoreInterface[] $stores */
-            foreach ($this->storeManager->getStores() as $store) {
-                // If store belongs to the same website.
-                if ($store->getWebsiteId() == $store_object->getWebsiteId()) {
-                    $website_store_ids[$store_id][] = $store->getId();
-                }
-            }
-        }
-
-        return $website_store_ids[$store_id];
     }
 
 }
