@@ -101,7 +101,7 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
      */
     public function execute(Observer $observer)
     {
-        $output = [];
+        $batch = [];
 
         /** @var \Magento\Catalog\Model\Product $product */
         $product = $observer->getEvent()->getProduct();
@@ -167,13 +167,16 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
                 continue;
             }
 
-            $this->logger->debug('ProductSaveObserver: sending product.', [
+            $this->logger->debug('ProductSaveObserver: queuing product.', [
                 'sku' => $storeProduct->getSku(),
                 'id' => $storeProduct->getId(),
                 'store_id' => $storeId,
             ]);
 
-            $output[$storeId][] = $this->acmHelper->getProductDataForAPI($storeProduct);
+            $batch[] = [
+                'sku' => $storeProduct->getSku(),
+                'store_id' => $storeId,
+            ];
         }
 
         // For the sites in which product is removed, we will send the product
@@ -209,22 +212,23 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
                         continue;
                     }
 
-                    $this->logger->debug('ProductSaveObserver: Product removed from website, will send product with status disabled.', [
+                    $this->logger->debug('ProductSaveObserver: Product removed from website, queuing product to be pushed.', [
                         'sku' => $storeProduct->getSku(),
                         'id' => $storeProduct->getId(),
                         'store_id' => $storeId,
                     ]);
 
-                    $record = $this->acmHelper->getProductDataForAPI($storeProduct);
-                    $record['status'] = \Magento\Catalog\Model\Product\Attribute\Source\Status::STATUS_DISABLED;
-                    $output[$storeId][] = $record;
+                    $batch[] = [
+                      'sku' => $storeProduct->getSku(),
+                      'store_id' => $storeId,
+                    ];
                 }
             }
         }
 
-        if ($output) {
-            $this->batchHelper->pushMultipleProducts($output, 'productSave');
-            $this->messageManager->addNotice(__('Your product update has been pushed to ACM for every impacted stores. These updates are going to be queued on ACM.'));
+        if ($batch) {
+            $this->batchHelper->addBatchToQueue($batch);
+            $this->messageManager->addNotice(__('Your product update has been pushed to ProductPush queue of Magento. Once processed it is going to be pushed to ACM for every impacted stores and queued there.'));
         }
     }
 
