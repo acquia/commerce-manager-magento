@@ -19,6 +19,7 @@ use Acquia\CommerceManager\Helper\Acm as AcmHelper;
 use Acquia\CommerceManager\Helper\Data as ClientHelper;
 use Magento\Framework\Webapi\ServiceOutputProcessor;
 use Magento\Store\Model\StoreManager;
+use Magento\Framework\Message\ManagerInterface as MessageManager;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -76,6 +77,12 @@ abstract class CategoryObserver extends ConnectorObserver
      */
     private $storeManager;
 
+  /**
+     * Message manager.
+     * @var MessageManager $messageManager
+     */
+    private $messageManager;
+
     /**
      * Constructor
      *
@@ -87,6 +94,7 @@ abstract class CategoryObserver extends ConnectorObserver
      * @param ServiceOutputProcessor $outputProcessor
      * @param LoggerInterface $logger
      * @param ScopeConfigInterface $scopeConfig
+     * @param MessageManager $messageManager
      */
     public function __construct(
         StoreManager $storeManager,
@@ -96,12 +104,14 @@ abstract class CategoryObserver extends ConnectorObserver
         ClientHelper $helper,
         ServiceOutputProcessor $outputProcessor,
         LoggerInterface $logger,
-        ScopeConfigInterface $scopeConfig
+        ScopeConfigInterface $scopeConfig,
+        MessageManager $messageManager
     ) {
         $this->storeManager = $storeManager;
         $this->categoryTreeFactory = $treeFactory;
         $this->categoryRepository = $categoryRepository;
         $this->scopeConfig = $scopeConfig;
+        $this->messageManager = $messageManager;
         parent::__construct(
             $acmHelper,
             $helper,
@@ -224,6 +234,8 @@ abstract class CategoryObserver extends ConnectorObserver
         };
 
         $this->tryRequest($doReq, $this->getLogName(), $storeId);
+
+        $this->messageManager->addNotice(__('Your category update has been pushed to ACM for every impacted stores. These updates are going to be queued on ACM.'));
     }
 
     /**

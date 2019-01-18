@@ -13,6 +13,7 @@ namespace Acquia\CommerceManager\Model\Plugin;
 use Acquia\CommerceManager\Helper\ProductBatch as BatchHelper;
 use Psr\Log\LoggerInterface;
 use Magento\Catalog\Model\Category as CategoryEntity;
+use Magento\Framework\Message\ManagerInterface as MessageManager;
 
 class ProductPushOnCategoryAssignment
 {
@@ -30,17 +31,26 @@ class ProductPushOnCategoryAssignment
     protected $logger;
 
     /**
+     * Message manager
+     * @var MessageManager
+     */
+    protected $messageManager;
+
+    /**
      * Constructor
      *
      * @param BatchHelper $batchHelper
      * @param LoggerInterface $logger
+     * @param MessageManager $messageManager
      */
     public function __construct(
         BatchHelper $batchHelper,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        MessageManager $messageManager
     ) {
         $this->batchHelper = $batchHelper;
         $this->logger = $logger;
+        $this->messageManager = $messageManager;
     }
 
     /**
@@ -89,6 +99,13 @@ class ProductPushOnCategoryAssignment
                         'batch' => $batch,
                     ]);
                 }
+            }
+
+            if (!$this->batchHelper->getMessageQueueEnabled()) {
+                $this->messageManager->addNotice(__('Your product assignments have been pushed to ACM for every impacted stores and are going to be queued there.'));
+            }
+            else {
+                $this->messageManager->addNotice(__('Your product assignments have been pushed to ProductPush queue of Magento. Once processed they are going to be pushed to ACM for every impacted stores and queued there.'));
             }
         }
 

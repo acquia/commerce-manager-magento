@@ -22,6 +22,7 @@ use Acquia\CommerceManager\Helper\Data as ClientHelper;
 use Acquia\CommerceManager\Helper\ProductBatch as ProductBatchHelper;
 use Magento\Framework\Webapi\ServiceOutputProcessor;
 use Magento\Store\Model\StoreManager;
+use Magento\Framework\Message\ManagerInterface as MessageManager;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -51,6 +52,12 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
     private $batchHelper;
 
     /**
+     * Message manager
+     * @var MessageManager $messageManager
+     */
+    private $messageManager;
+
+    /**
      * ProductSaveObserver constructor.
      * @param StoreManager $storeManager
      * @param ProductRepositoryInterface $productRepository
@@ -59,6 +66,7 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
      * @param ClientHelper $helper
      * @param ServiceOutputProcessor $outputProcessor
      * @param LoggerInterface $logger
+     * @param MessageManager $messageManager
      */
     public function __construct(
         StoreManager $storeManager,
@@ -67,11 +75,13 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
         ProductBatchHelper $batchHelper,
         ClientHelper $helper,
         ServiceOutputProcessor $outputProcessor,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        MessageManager $messageManager
     ) {
         $this->storeManager = $storeManager;
         $this->productRepository = $productRepository;
         $this->batchHelper = $batchHelper;
+        $this->messageManager = $messageManager;
         parent::__construct(
             $acmHelper,
             $helper,
@@ -214,6 +224,7 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
 
         if ($output) {
             $this->batchHelper->pushMultipleProducts($output, 'productSave');
+            $this->messageManager->addNotice(__('Your product update has been pushed to ACM for every impacted stores. These updates are going to be queued on ACM.'));
         }
     }
 
