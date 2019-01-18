@@ -147,5 +147,4 @@ class UpdateAttributes
 
         return $result;
     }
-
 }
