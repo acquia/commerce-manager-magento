@@ -11,7 +11,9 @@
 namespace Acquia\CommerceManager\Model\Plugin;
 
 use Acquia\CommerceManager\Helper\ProductBatch as BatchHelper;
+use Acquia\CommerceManager\Model\Product\Attribute\Repository;
 use Magento\Catalog\Model\Product\Action;
+use Magento\Store\Model\StoreManager;
 use Psr\Log\LoggerInterface;
 
 class UpdateAttributes
@@ -21,6 +23,20 @@ class UpdateAttributes
      * @var BatchHelper
      */
     private $batchHelper;
+
+    /**
+     * Store manager.
+     *
+     * @var StoreManager $storeManager
+     */
+    protected $storeManager;
+
+    /**
+     * Product attribute repository
+     *
+     * @var Repository $productAttributeRepository
+     */
+    protected $productAttributeRepository;
 
     /**
      * System Logger
@@ -33,12 +49,18 @@ class UpdateAttributes
      * Constructor
      *
      * @param BatchHelper $batchHelper
+     * @param StoreManager $storeManager
+     * @param Repository $productAttributeRepository
      * @param LoggerInterface $logger
      */
     public function __construct(BatchHelper $batchHelper,
+                                StoreManager $storeManager,
+                                Repository $productAttributeRepository,
                                 LoggerInterface $logger)
     {
         $this->batchHelper = $batchHelper;
+        $this->storeManager = $storeManager;
+        $this->productAttributeRepository = $productAttributeRepository;
         $this->logger = $logger;
     }
 
@@ -64,6 +86,31 @@ class UpdateAttributes
         $result = $original($productIds, $attrData, $storeId);
 
         if ($this->batchHelper->pushOnProductAttributeUpdate()) {
+            // Push to all stores by default.
+            $storeIds = [NULL];
+
+            // If not the default store view.
+            if ($storeId != 0) {
+                // Push to current store if set.
+                $storeIds = [$storeId];
+
+                // Check for attributes being updated.
+                foreach (array_keys($attrData) as $attr_code) {
+                    $attribute = $this->productAttributeRepository->get($attr_code);
+
+                    // If any attribute is at website scope level then we need to
+                    // push for all stores of the website.
+                    if ($attribute->isScopeWebsite()) {
+                        $storeIds = $this->getAllStoresOfWebsiteByStoreId($storeId);
+                        $this->logger->debug('Updated attribute is website level so pushing only for all stores of website.', [
+                            'attribute_code' => $attr_code,
+                            'store_ids' => implode(',', $storeIds),
+                        ]);
+                        break;
+                    }
+                }
+            }
+
             $productIds = array_unique($productIds);
 
             // Get batch size from config.
@@ -74,24 +121,59 @@ class UpdateAttributes
                 $batch = [];
 
                 foreach ($chunk as $productId) {
-                    $batch[$productId] = [
-                        'product_id' => $productId,
-                        'store_id' => $storeId,
-                    ];
+                    // Send to multiple stores.
+                    foreach ($storeIds as $store_id) {
+                        $batch[$store_id][] = [
+                            'product_id' => $productId,
+                            'store_id' => $store_id,
+                        ];
+                    }
                 }
 
                 if (!empty($batch)) {
                     // Push product ids in queue in batch.
-                    $this->batchHelper->addBatchToQueue($batch);
+                    foreach ($batch as $storeBatch) {
+                        $this->batchHelper->addbatchtoqueue($storeBatch);
 
-                    $this->logger->info('Added products to queue for pushing in background.', [
-                        'observer' => 'aroundUpdateAttributes',
-                        'batch' => $batch,
-                    ]);
+                        $this->logger->info('Added products to queue for pushing in background.', [
+                            'observer' => 'aroundUpdateAttributes',
+                            'batch' => $storeBatch,
+                        ]);
+                    }
                 }
             }
         }
 
         return $result;
     }
+
+    /**
+     * Get the store id of all store belong to same website as given store.
+     *
+     * @param int $store_id
+     *   Store id.
+     *
+     * @return array
+     *   Array of store ids.
+     */
+    private function getAllStoresOfWebsiteByStoreId(int $store_id) {
+        static $website_store_ids = [];
+
+        if (!isset($website_store_ids[$store_id])) {
+            $website_store_ids[$store_id] = [];
+
+            /* @var \Magento\Store\Api\Data\StoreInterface $store_object */
+            $store_object = $this->storeManager->getStore($store_id);
+            /* @var \Magento\Store\Api\Data\StoreInterface[] $stores */
+            foreach ($this->storeManager->getStores() as $store) {
+                // If store belongs to the same website.
+                if ($store->getWebsiteId() == $store_object->getWebsiteId()) {
+                    $website_store_ids[$store_id][] = $store->getId();
+                }
+            }
+        }
+
+        return $website_store_ids[$store_id];
+    }
+
 }
