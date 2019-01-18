@@ -17,6 +17,7 @@ use Magento\Framework\Event\ObserverInterface;
 use Magento\Framework\Event\Observer;
 use Magento\Framework\Webapi\ServiceOutputProcessor;
 use Magento\CatalogImportExport\Model\Import\Product as ImportProduct;
+use Magento\Framework\Message\ManagerInterface as MessageManager;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -35,6 +36,13 @@ class ProductImportBunchSaveObserver extends ConnectorObserver implements Observ
     protected $productBatchHelper;
 
     /**
+     * Message manager.
+     *
+     * @var MessageManager
+     */
+    protected $messageManager;
+
+    /**
      * ProductImportBunchSaveObserver constructor.
      *
      * @param AcmHelper $acmHelper
@@ -43,15 +51,18 @@ class ProductImportBunchSaveObserver extends ConnectorObserver implements Observ
      * @param BatchHelper $productBatchHelper
      * @param ClientHelper $clientHelper
      * @param MessageManager $messageManager
+     * @param MessageManager $messageManager
      */
     public function __construct(
         AcmHelper $acmHelper,
         ServiceOutputProcessor $outputProc,
         LoggerInterface $logger,
         BatchHelper $productBatchHelper,
-        ClientHelper $clientHelper
+        ClientHelper $clientHelper,
+        MessageManager $messageManager
     ) {
         $this->productBatchHelper = $productBatchHelper;
+        $this->messageManager = $messageManager;
         parent::__construct(
             $acmHelper,
             $clientHelper,
@@ -172,5 +183,12 @@ class ProductImportBunchSaveObserver extends ConnectorObserver implements Observ
         $this->logger->info('ProductImportBunchSaveObserver: Added products to queue for pushing.', [
             'skus' => implode(', ', $logData),
         ]);
+
+        if (!$this->productBatchHelper->getMessageQueueEnabled()) {
+            $this->messageManager->addNotice(__('Your product assignments have been pushed to ACM for every impacted stores and are going to be queued there.'));
+        }
+        else {
+            $this->messageManager->addNotice(__('Your product assignments have been pushed to ProductPush queue of Magento. Once processed they are going to be pushed to ACM for every impacted stores and queued there.'));
+        }
     }
 }
