@@ -176,8 +176,9 @@ class ProductSaveObserver extends ConnectorObserver implements ObserverInterface
                 $do_not_push_disabled = $storeProduct->getData(ProductInterface::STATUS) == Status::STATUS_DISABLED;
             }
             else {
-                // Case of an update.
-                if ($product->getStoreId() == 0) {
+                // Case of an update on default store or when update on specific store
+                // with pushing store not matching with current product store.
+                if ($product->getStoreId() == 0 || $storeId != $product->getStoreId()) {
                     // Case of an update on default store view.
                     $do_not_push_disabled = $storeProduct->getData(ProductInterface::STATUS) == Status::STATUS_DISABLED && !($product->getOrigData(ProductInterface::STATUS) == Status::STATUS_ENABLED && $product->getData(ProductInterface::STATUS) == Status::STATUS_DISABLED);
                 }
