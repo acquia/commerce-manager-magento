@@ -182,6 +182,15 @@ class Data extends AbstractHelper
 
         $logger = $this->_logger;
 
+        // This environment variable is intended to be set only on the
+        // environments that are expected to push to ACM instances. It has been
+        // introduced after having realised that cloned Magento databases for
+        // use on local envs were unexpectedly pushing data to ACM.
+        if (empty($_ENV['ACQUIA_ACM_PUSH'])) {
+            $logger->error('Not sending anything to ACM as ACQUIA_ACM_PUSH environment variable is not set.');
+            return (true);
+        }
+
         // Check if the module is enabled.
         if ($this->getApiConfigData('acquia_commerce/connector_enable',$storeId) !== '1') {
             $logger->info("Connector isn't enabled for this store, no request has been made to middleware");
