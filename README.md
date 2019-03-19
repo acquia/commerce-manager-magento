@@ -9,10 +9,10 @@ A Magento 2.x extension that works the the Acuqia Commerce Connector Service to 
 ```
 composer require acquia/commerce-manager-magento:"~2.1"
 ```
-2. (Magento EE only) Setup cron job to consume messages for pushing products in background.
+2. (Magento with Rabbit MQ setup) Setup cron job to consume messages for pushing products in background.
   Cron job example: `*/5 * * * * timeout 290s php bin/magento queue:consumers:start --max-messages=100 connectorProductPushConsumer`
-3. (Magento EE only) Setup cron job to consume messages for pushing stock changes.
-  Cron job example: `*/5 * * * * timeout 290s php bin/magento queue:consumers:start --max-messages=100 connectorStockPushConsumer`
+3. Ensure cron job for indexer is configured and running fine.
+  Command: `php bin/magento cron:run --group="index"`
 
 
 ## Enable connector integration

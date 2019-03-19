@@ -14,7 +14,4 @@
     <topic name="connector.product.push" request="string">
         <handler name="connector.product.push.handler" type="Acquia\CommerceManager\Model\ProductPush" method="pushProductBatch" />
     </topic>
-    <topic name="connector.stock.push" request="string">
-        <handler name="connector.stock.push.handler" type="Acquia\CommerceManager\Model\StockPush" method="pushStock" />
-    </topic>
 </config>

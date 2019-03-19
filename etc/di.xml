@@ -54,11 +54,6 @@
     </type>
 
     <!-- plugins (intercepts) -->
-    <type name="Magento\InventoryMessageBus\Model\ResourceModel\StockUpdateIdx">
-        <plugin name="acm_after_stock_table_update"
-                type="Acquia\CommerceManager\Plugin\Stock"
-                sortOrder="30"/>
-    </type>
     <type name="\Magento\Customer\Model\ResourceModel\CustomerRepository">
         <plugin name="acquia_commercemanager_plugin_customerrepository"
                 type="Acquia\CommerceManager\Plugin\CustomerRepositoryPlugin"

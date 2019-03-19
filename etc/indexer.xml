@@ -19,4 +19,9 @@
         <title translate="true">Acquia Commerce Product Sales Rule</title>
         <description translate="true">Indexed sales rule / product association</description>
     </indexer>
+
+    <indexer id="acq_cataloginventory_stock" view_id="acq_cataloginventory_stock" class="Acquia\CommerceManager\Model\Indexer\Stock">
+        <title translate="true">Stock Push</title>
+        <description translate="true">Process stock push</description>
+    </indexer>
 </config>

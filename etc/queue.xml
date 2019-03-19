@@ -15,7 +15,4 @@
     <broker topic="connector.product.push" type="amqp" exchange="magento">
         <queue name="connectorProductPushQueue" consumer="connectorProductPushConsumer" />
     </broker>
-    <broker topic="connector.stock.push" type="amqp" exchange="magento">
-        <queue name="connectorStockPushQueue" consumer="connectorStockPushConsumer" />
-    </broker>
 </config>
