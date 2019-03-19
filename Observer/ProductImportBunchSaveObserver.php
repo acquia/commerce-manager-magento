@@ -10,6 +10,7 @@
 
 namespace Acquia\CommerceManager\Observer;
 
+use Magento\Catalog\Model\Product\Attribute\Source\Status;
 use Acquia\CommerceManager\Helper\Data as ClientHelper;
 use Acquia\CommerceManager\Helper\Acm as AcmHelper;
 use Acquia\CommerceManager\Helper\ProductBatch as BatchHelper;
