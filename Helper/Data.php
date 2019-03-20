@@ -186,7 +186,7 @@ class Data extends AbstractHelper
         // environments that are expected to push to ACM instances. It has been
         // introduced after having realised that cloned Magento databases for
         // use on local envs were unexpectedly pushing data to ACM.
-        if (empty($_ENV['ACQUIA_ACM_PUSH'])) {
+        if (!getenv('ACQUIA_ACM_PUSH')) {
             $logger->error('Not sending anything to ACM as ACQUIA_ACM_PUSH environment variable is not set.');
             return (true);
         }
