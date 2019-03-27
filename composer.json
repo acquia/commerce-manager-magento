@@ -1,7 +1,6 @@
 {
     "name": "acquiacommerce/commerce-manager-magento",
     "description": "Magento 2.x extension for use with the Acquia Commerce Connector Service.",
-    "version": "2.3.0-dev",
     "require": {
         "acquia/http-hmac-php": "~3.2",
         "guzzlehttp/guzzle": "~6.0",
