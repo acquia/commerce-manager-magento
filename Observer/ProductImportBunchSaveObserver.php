@@ -141,6 +141,10 @@ class ProductImportBunchSaveObserver extends ConnectorObserver implements Observ
                     $productStoresToPush = array_merge($productStoresToPush, $this->acmHelper->getAllStoresForWebsite($websiteCode));
                 }
             }
+            // Push to all the stores if we are not able to filter.
+            else {
+                $productStoresToPush = [0];
+            }
 
             // Remove disabled stores if status column not set.
             if (!$status_column_set) {
