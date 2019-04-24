@@ -115,7 +115,7 @@ class UpdateAttributes
 
         // Queue products to be pushed in background.
         if (!empty($productsToQueue)) {
-            $this->acmHelper->addProductsToQueue($productsToQueue, __CLASS__ . ':' . __FUNCTION__);
+            $this->batchHelper->addProductsToQueue($productsToQueue, __METHOD__);
         }
 
         return $result;
