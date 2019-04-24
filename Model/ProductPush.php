@@ -163,26 +163,22 @@ class ProductPush
                     }
 
                     $record = $this->acmHelper->getProductDataForAPI($storeProduct);
-
-                    // For stores not currently assigned to product, we send to Drupal
-                    // as disabled.
-                    if (!in_array($storeId, $productStoreIds)) {
-                        $logData['unavailable_disabled'][] = [
-                            'store_id' => $storeId,
-                            'sku' => $storeProduct->getSku(),
-                            'productStoreIds' => $productStoreIds,
-                        ];
-
-                        $record['status'] = ProductAttributeStatus::STATUS_DISABLED;
-                    }
-
-                    $logData['pushed'][] = [
+                    $log = [
                         'store_id' => $storeId,
-                        'status' => $record['status'],
                         'sku' => $storeProduct->getSku(),
                     ];
 
+                    // For stores not currently assigned to product, we send
+                    // to Drupal as disabled.
+                    if (!in_array($storeId, $productStoreIds)) {
+                        $record['status'] = ProductAttributeStatus::STATUS_DISABLED;
+                        $log['forced_disabled'] = 1;
+                    }
+
+                    $log['status'] = $record['status'];
+
                     $productDataByStore[$storeId][] = $record;
+                    $logData['pushed'][] = $log;
                 }
             }
             catch (\Exception $e) {
