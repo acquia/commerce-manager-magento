@@ -11,6 +11,7 @@
 namespace Acquia\CommerceManager\Model\Plugin;
 
 use Acquia\CommerceManager\Helper\ProductBatch as BatchHelper;
+use Psr\Log\LoggerInterface;
 use Magento\Catalog\Model\Category as CategoryEntity;
 use Magento\Framework\Message\ManagerInterface as MessageManager;
 
@@ -23,6 +24,13 @@ class ProductPushOnCategoryAssignment
     private $batchHelper;
 
     /**
+     * System Logger
+     *
+     * @var LoggerInterface $logger
+     */
+    protected $logger;
+
+    /**
      * Message manager
      * @var MessageManager
      */
@@ -32,13 +40,16 @@ class ProductPushOnCategoryAssignment
      * Constructor
      *
      * @param BatchHelper $batchHelper
+     * @param LoggerInterface $logger
      * @param MessageManager $messageManager
      */
     public function __construct(
         BatchHelper $batchHelper,
+        LoggerInterface $logger,
         MessageManager $messageManager
     ) {
         $this->batchHelper = $batchHelper;
+        $this->logger = $logger;
         $this->messageManager = $messageManager;
     }
 
