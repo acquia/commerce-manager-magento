@@ -80,7 +80,13 @@ class Acm extends AbstractHelper
     private $resource;
 
     /**
+     * @var \Magento\Framework\EntityManager\MetadataPool
+     */
+    private $metadataPool;
+
+    /**
      * Acm constructor.
+     * @param \Magento\Framework\EntityManager\MetadataPool $metadataPool
      * @param \Magento\Store\Model\StoreManagerInterface $storeManager
      * @param ClientHelper $clientHelper
      * @param StockHelper $stockHelper
@@ -93,6 +99,7 @@ class Acm extends AbstractHelper
      * @param \Magento\Framework\App\ResourceConnection $resource
      */
     public function __construct(
+        \Magento\Framework\EntityManager\MetadataPool $metadataPool,
         \Magento\Store\Model\StoreManagerInterface $storeManager,
         ClientHelper $clientHelper,
         StockHelper $stockHelper,
@@ -104,6 +111,7 @@ class Acm extends AbstractHelper
         \Magento\Framework\App\Helper\Context $context,
         \Magento\Framework\App\ResourceConnection $resource
     ) {
+        $this->metadataPool = $metadataPool;
         $this->stockHelper = $stockHelper;
         $this->storeManager = $storeManager;
         $this->clientHelper = $clientHelper;
@@ -392,6 +400,9 @@ class Acm extends AbstractHelper
         /** @var \Magento\Framework\DB\Adapter\AdapterInterface $readConnection */
         $readConnection = $this->resource->getConnection('core_read');
 
+        $metadata = $this->metadataPool->getMetadata(ProductInterface::class);
+        $linkField = $metadata->getLinkField();
+
         // Get list of all stores the product has an entry for. We are
         // not filtering the results based on enabled/disabled status
         // here, since we would never know from DB directly if a product
@@ -401,7 +412,7 @@ class Acm extends AbstractHelper
         // have only overrides in the table.
         $sql = $readConnection->select()->from(['cpei' => 'catalog_product_entity_int'], ['store_id', 'value'])
             ->join(['ea' => 'eav_attribute'], 'ea.attribute_id = cpei.attribute_id AND ea.attribute_code="status"')
-            ->join(['cpe' => 'catalog_product_entity'], 'cpe.row_id = cpei.row_id', ['cpe.sku'])
+            ->join(['cpe' => 'catalog_product_entity'], 'cpe.'.$linkField.' = cpei.'.$linkField, ['cpe.sku'])
             ->where('cpe.sku IN (?)', $skus)
             ->where('store_id = 0 OR store_id IN (?)', $store_ids);
 
@@ -425,5 +436,4 @@ class Acm extends AbstractHelper
 
         return $statuses;
     }
-
 }

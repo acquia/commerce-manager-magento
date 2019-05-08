@@ -15,9 +15,11 @@ use Acquia\CommerceManager\Helper\Acm as AcmHelper;
 use Acquia\CommerceManager\Model\Cache\Type\Acm as AcmCache;
 use Magento\Catalog\Api\Data\ProductInterface;
 use Magento\Catalog\Api\ProductRepositoryInterface;
+use Magento\Catalog\Model\Product\Attribute\Source\Status;
 use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\Helper\AbstractHelper;
 use Magento\Framework\App\Helper\Context;
+use Magento\Framework\App\ResourceConnection;
 use Magento\Framework\Module\ModuleListInterface;
 use Psr\Log\LoggerInterface;
 
@@ -79,6 +81,13 @@ class ProductBatch extends AbstractHelper
     private $productRepository;
 
     /**
+     * Resource Connection.
+     *
+     * @var ResourceConnection
+     */
+    private $resource;
+
+    /**
      * Magento Module List Service
      * @var ModuleListInterface $moduleList
      */
@@ -100,6 +109,7 @@ class ProductBatch extends AbstractHelper
      * @param AcmHelper $acmHelper
      * @param ModuleListInterface $moduleList
      * @param AcmCache $cache
+     * @param ResourceConnection $resource
      */
     public function __construct(
         Context $context,
@@ -107,7 +117,8 @@ class ProductBatch extends AbstractHelper
         ClientHelper $clientHelper,
         AcmHelper $acmHelper,
         ModuleListInterface $moduleList,
-        AcmCache $cache
+        AcmCache $cache,
+        ResourceConnection $resource
     ) {
         $this->productRepository = $productRepository;
         $this->clientHelper = $clientHelper;
@@ -115,6 +126,7 @@ class ProductBatch extends AbstractHelper
         $this->moduleList = $moduleList;
         $this->logger = $context->getLogger();
         $this->cache = $cache;
+        $this->resource = $resource;
         parent::__construct($context);
     }
 
@@ -217,22 +229,91 @@ class ProductBatch extends AbstractHelper
     }
 
     /**
-     * Add batch (consisting of product ids) to queue.
+     * Function to process products in batches and add to queue.
      *
-     * @param mixed $batch
+     * @param array $products
+     *   Array of arrays containing sku/product_id and stores.
+     * @param $caller
+     *   Identifier calling this function for logs.
+     * @param bool $check_status
+     *   Flag to specify if status should be checked or not.
      */
-    public function addBatchToQueue($batch)
+    public function addProductsToQueue(array $products, $caller, $check_status = true)
     {
-        $batch = is_array($batch) ? $batch : [$batch];
+        if (!$this->getMessageQueueEnabled()) {
+            $this->logger->warning('ProductBatch::addProductsToQueue(). No message queue available.', [
+                'caller' => $caller,
+            ]);
+            return;
+        }
 
-        $batch = array_filter(array_map(function($batchItem) {
-            if (!is_array($batchItem)) {
-                $batchItem = [
-                    'product_id' => $batchItem,
-                    'store_id' => NULL,
+        // First normalise data.
+        // We want sku for all.
+        $products = $this->replaceProductIdWithSku($products);
+
+        $productsToQueue = [];
+
+        // We want store_id and one row per store.
+        foreach ($products as $product) {
+            if (isset($product['stores'])) {
+                $product['stores'] = is_array($product['stores']) ? $product['stores'] : [$product['stores']];
+                foreach ($product['stores'] as $storeId) {
+                    $productsToQueue[$storeId][$product['sku']] = [
+                        'sku' => $product['sku'],
+                        'store_id' => $storeId,
+                    ];
+                }
+            }
+            // Send to all the stores.
+            else {
+                $productsToQueue[0][$product['sku']] = [
+                    'sku' => $product['sku'],
+                    'store_id' => 0,
                 ];
             }
+        }
 
+        // Remove disabled stores.
+        if ($check_status) {
+            $skus = array_column($products, 'sku');
+            $statuses = $this->getProductStatusForStores($skus);
+
+            foreach ($productsToQueue as $storeId => $storeProducts) {
+                // For store id 0 or when pushing to all the stores,
+                // we will check for status when pushing to ACM.
+                if (empty($storeId)) {
+                    continue;
+                }
+
+                foreach ($storeProducts as $sku => $product) {
+                    if ($statuses[$sku][$storeId] == Status::STATUS_DISABLED) {
+                        unset($productsToQueue[$storeId][$sku]);
+                    }
+                }
+            }
+        }
+
+        // Queue in chunks.
+        $batchSize = $this->getProductQueueBatchSize();
+        foreach ($productsToQueue as $storeId => $storeProducts) {
+            foreach (array_chunk($storeProducts, $batchSize) as $products) {
+                $this->addBatchToQueue($products, $caller);
+            }
+        }
+    }
+
+    /**
+     * Add batch (consisting of array of sku and store_id) to queue.
+     *
+     * @param mixed $batch
+     *   Array of arrays containing sku and store_id.
+     * @param string $caller
+     *   Calling function to add to logs.
+     */
+    private function addBatchToQueue($batch, $caller)
+    {
+
+        $batch = array_filter(array_map(function($batchItem) {
             try {
                 if ($this->isProductPushReduceDuplicatesEnabled()) {
                     $this->markProductAsQueuedForPushing($batchItem);
@@ -248,14 +329,13 @@ class ProductBatch extends AbstractHelper
         }, $batch));
 
         if (!empty($batch)) {
-            // MessageQueue is EE only. So do nothing if there is no queue.
-            $messageQueue = $this->getMessageQueue();
-            if ($messageQueue) {
-                $this->getMessageQueue()->publish(self::PRODUCT_PUSH_CONSUMER, json_encode($batch));
-            } else {
-                // At 20180123, do nothing.
-                // Later (Malachy or Anuj): Use Magento CRON instead
-            }
+            $batch = json_encode($batch);
+            $this->getMessageQueue()->publish(self::PRODUCT_PUSH_CONSUMER, $batch);
+
+            $this->logger->info('Added products to queue for pushing in background.', [
+                'caller' => $caller,
+                'data' => $batch,
+            ]);
         }
     }
 
@@ -284,7 +364,7 @@ class ProductBatch extends AbstractHelper
      *
      * @return mixed
      */
-    public function getProductQueueBatchSize()
+    private function getProductQueueBatchSize()
     {
         $path = 'webapi/acquia_commerce_settings/product_queue_batch_size';
 
@@ -400,6 +480,57 @@ class ProductBatch extends AbstractHelper
         $cache_id .= implode('|', $batchItem);
 
         return $cache_id;
+    }
+
+    /**
+     * replaceProductIdWithSku.
+     *
+     * Replace product ids with skus using database query
+     * without loading full products.
+     *
+     * @param array $products
+     *   Products array.
+     *
+     * @return array
+     *   Products array with sku instead of product_id.
+     */
+    private function replaceProductIdWithSku($products)
+    {
+        $productIds = array_column($products, 'product_id');
+
+        if (empty($productIds)) {
+            return $products;
+        }
+
+        $select = $this->resource->getConnection()->select()->from(
+            $this->resource->getTableName('catalog_product_entity'),
+            ['entity_id', 'sku']
+        );
+        $select->where('entity_id IN (?)', $productIds);
+        $records = $this->resource->getConnection()->fetchPairs($select);
+
+        foreach ($products as $key => $row) {
+            // We may have mixed data, some with product id, some with sku.
+            if (empty($row['product_id'])) {
+                continue;
+            }
+
+            // For whatever reason if we are not able to find record
+            // for this product id in DB, we don't do anything
+            // for it.
+            if (empty($records[$row['product_id']])) {
+                unset($products[$key]);
+                continue;
+            }
+
+            // Set sku in product data.
+            $products[$key]['sku'] = $records[$row['product_id']];
+
+            // Remove product id now.
+            unset($products[$key]['product_id']);
+        }
+
+        return $products;
     }
 
 }

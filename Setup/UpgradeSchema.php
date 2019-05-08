@@ -55,6 +55,17 @@ class UpgradeSchema implements UpgradeSchemaInterface
             $this->logger->info("Upgraded to 1.1.1");
         }
 
+        if (version_compare($context->getVersion(), '1.1.3', '<')) {
+            // Drop table first, we want to truncate the table anyway.
+            $connection = $setup->getConnection();
+            $connection->dropTable('acq_salesrule_product');
+
+            // Create the table again with new field for category_type.
+            $this->createSalesRuleIndexTable($setup);
+
+            $this->logger->info('ACM schema upgraded to 1.1.3, Re-created acq_salesrule_product to add category_type field and truncate table.');
+        }
+
         $setup->endSetup();
     }
 
@@ -95,6 +106,13 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 'Product Id'
             )
             ->addColumn(
+                'condition_type',
+                \Magento\Framework\DB\Ddl\Table::TYPE_TEXT,
+                50,
+                [],
+                'Condition Type'
+            )
+            ->addColumn(
                 'rule_price',
                 \Magento\Framework\DB\Ddl\Table::TYPE_DECIMAL,
                 [12, 4],
@@ -111,10 +129,10 @@ class UpgradeSchema implements UpgradeSchemaInterface
             ->addIndex(
                 $setup->getIdxName(
                     'acq_salesrule_product',
-                    ['rule_id', 'product_id', 'website_id'],
+                    ['rule_id', 'product_id', 'website_id', 'condition_type'],
                     true
                 ),
-                ['rule_id', 'product_id', 'website_id'],
+                ['rule_id', 'product_id', 'website_id', 'condition_type'],
                 ['type' => 'unique']
             )
             ->addIndex(

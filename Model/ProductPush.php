@@ -153,20 +153,32 @@ class ProductPush
                         continue;
                     }
 
-                    $logData['pushed'][] = [
+                    if (empty($storeIdRequested) && $storeProduct->getStatus() == ProductAttributeStatus::STATUS_DISABLED) {
+                        $logData['disabled_ignored'][] = [
+                            'store_id' => $storeId,
+                            'sku' => $storeProduct->getSku(),
+                        ];
+
+                        continue;
+                    }
+
+                    $record = $this->acmHelper->getProductDataForAPI($storeProduct);
+                    $log = [
                         'store_id' => $storeId,
                         'sku' => $storeProduct->getSku(),
                     ];
 
-                    $record = $this->acmHelper->getProductDataForAPI($storeProduct);
-
-                    // For stores not currently assigned to product, we send to Drupal
-                    // as disabled.
+                    // For stores not currently assigned to product, we send
+                    // to Drupal as disabled.
                     if (!in_array($storeId, $productStoreIds)) {
                         $record['status'] = ProductAttributeStatus::STATUS_DISABLED;
+                        $log['forced_disabled'] = 1;
                     }
 
+                    $log['status'] = $record['status'];
+
                     $productDataByStore[$storeId][] = $record;
+                    $logData['pushed'][] = $log;
                 }
             }
             catch (\Exception $e) {
@@ -188,8 +200,14 @@ class ProductPush
         $this->batchHelper->pushMultipleProducts($productDataByStore, 'pushProductBatch');
 
         $logData['end_time'] = microtime();
-        $logData['pushed'] = json_encode($logData['pushed']);
-        $this->logger->info('ProductPush: pushed products in background.', $logData);
+
+        foreach ($logData as $key => $value) {
+            if (is_array($value)) {
+                $logData[$key] = json_encode($value);
+            }
+        }
+
+        $this->logger->info('ProductPush: pushed products from queue.', $logData);
     }
 
 }

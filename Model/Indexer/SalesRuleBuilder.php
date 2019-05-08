@@ -200,11 +200,6 @@ class SalesRuleBuilder
 
         /** @var SalesRule $rule */
         foreach ($rules as $rule) {
-            // We index only for those without coupons.
-            if ($rule->getCouponType() != SalesRule::COUPON_TYPE_NO_COUPON) {
-                continue;
-            }
-
             $products_processed = false;
 
             $conditions = $this->locateProductConditions(
@@ -224,7 +219,8 @@ class SalesRuleBuilder
                             $products,
                             $conditions,
                             $websiteId,
-                            $rule->getRuleId()
+                            $rule->getRuleId(),
+                            'condition'
                         );
                     $products_processed = $products_processed || $processed;
                 }
@@ -235,7 +231,8 @@ class SalesRuleBuilder
                             $products,
                             $actionConditions,
                             $websiteId,
-                            $rule->getRuleId()
+                            $rule->getRuleId(),
+                            'action'
                         );
                     $products_processed = $products_processed || $processed;
                 }
@@ -259,14 +256,15 @@ class SalesRuleBuilder
      * @param $conditions
      * @param int $websiteId
      * @param int $ruleId
+     * @param string $condition_type
      * @return bool
      */
-    protected function processConditions($products, $conditions, $websiteId, $ruleId)
+    protected function processConditions($products, $conditions, $websiteId, $ruleId, $condition_type)
     {
         try {
             // Assemble matching products collection to rule conditions
             $this->filterProducts($products, $conditions, $websiteId);
-            $this->addProductsToIndex($products, $websiteId, $ruleId);
+            $this->addProductsToIndex($products, $websiteId, $ruleId, $condition_type);
             return true;
         } catch (\RuntimeException $e) {
             return false;
@@ -281,8 +279,9 @@ class SalesRuleBuilder
      * @param $products
      * @param int $websiteId
      * @param int $ruleId
+     * @param string $condition_type
      */
-    protected function addProductsToIndex($products, $websiteId, $ruleId)
+    protected function addProductsToIndex($products, $websiteId, $ruleId, $condition_type)
     {
         $rows = [];
 
@@ -295,17 +294,18 @@ class SalesRuleBuilder
                 continue;
             }
 
-            if (isset($this->duplicatesCheck[$ruleId][$websiteId][$product->getId()])) {
+            if (isset($this->duplicatesCheck[$ruleId][$websiteId][$condition_type][$product->getId()])) {
                 continue;
 
             }
 
-            $this->duplicatesCheck[$ruleId][$websiteId][$product->getId()] = 1;
+            $this->duplicatesCheck[$ruleId][$websiteId][$condition_type][$product->getId()] = 1;
 
             $rows[] = [
                 'rule_id' => $ruleId,
                 'product_id' => $product->getId(),
                 // We don't use rule price for cart rules.
+                'condition_type' => $condition_type,
                 'rule_price' => 1,
                 'website_id' => $websiteId,
             ];

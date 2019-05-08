@@ -81,8 +81,8 @@ class UpgradeData implements UpgradeDataInterface
         }
 
         if (version_compare($context->getVersion(), '1.1.3') < 0) {
-            //code to upgrade to 1.1.3
-            $this->logger->info("Upgraded to 1.1.3");
+            $this->indexerRegistry->get('acq_salesrule_product')->reindexAll();
+            $this->logger->info('ACM data upgraded to 1.1.3, Sales Rule indexer data re-indexed.');
         }
 
         if (version_compare($context->getVersion(), '1.1.4') < 0) {
