@@ -34,6 +34,9 @@
     <!-- Class overrides -->
     <preference for ="\Magento\CatalogRule\Model\ResourceModel\Rule\Collection" type="\Acquia\CommerceManager\Model\ResourceModel\Rule\Collection" />
 
+    <!-- Class overrides -->
+    <preference for="Magento\CatalogRule\Model\Indexer\IndexBuilder" type="Acquia\CommerceManager\Model\Indexer\ProductRuleIndexBuilder" />
+
     <!-- Product Relation API Builder / Processors -->
     <preference for="Acquia\CommerceManager\Model\Product\RelationBuilderInterface" type="Acquia\CommerceManager\Model\Product\RelationBuilder" />
     <type name="Acquia\CommerceManager\Model\Product\RelationBuilder">
